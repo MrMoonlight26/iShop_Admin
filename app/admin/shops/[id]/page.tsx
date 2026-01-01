@@ -1,0 +1,53 @@
+import Link from 'next/link'
+
+interface Props { params: { id: string } }
+
+export default async function ShopDetail({ params }: Props) {
+  const { id } = params
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
+  const r = await fetch(`${base}/api/admin/shops?id=${id}`, { cache: 'no-store' })
+  if (!r.ok) return (<div className="p-6">Shop not found</div>)
+  const shop = await r.json()
+
+  const ownerType = shop.ownerType
+  const ordersCount = shop.ordersCount ?? 0
+
+  return (
+    <div className="p-6">
+      <div className="mb-4 flex items-center gap-4">
+        <Link href="/admin/shops" className="text-sm text-muted-foreground">← Back</Link>
+        <h1 className="text-2xl font-bold">{shop.name}</h1>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 border rounded">
+          <div className="text-sm text-muted-foreground">Shop ID</div>
+          <div className="font-mono text-sm">{shop.id}</div>
+
+          <div className="mt-4 text-sm text-muted-foreground">Status</div>
+          <div className={`inline-block mt-1 px-2 py-1 rounded ${shop.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : shop.status === 'PAUSED' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{shop.status}</div>
+
+          {ownerType && (
+            <>
+              <div className="mt-4 text-sm text-muted-foreground">Owner Type</div>
+              <div className="mt-1 text-sm">{ownerType}</div>
+            </>
+          )}
+
+          <div className="mt-4 text-sm text-muted-foreground">Created</div>
+          <div className="mt-1 text-sm">{shop.createdAt.toISOString()}</div>
+        </div>
+
+        <div className="p-4 border rounded">
+          <div className="text-sm text-muted-foreground">Owner</div>
+          <div className="mt-1 text-sm">{shop.owner?.name ?? '—'}</div>
+          <div className="text-xs text-muted-foreground">{shop.owner?.email ?? ''}</div>
+
+          <div className="mt-4 text-sm text-muted-foreground">Counts</div>
+          <div className="mt-1 text-sm">Products: {shop._count?.shopProducts ?? 0}</div>
+          <div className="mt-1 text-sm">Orders: {ordersCount ?? 0}</div>
+        </div>
+      </div>
+    </div>
+  )
+}

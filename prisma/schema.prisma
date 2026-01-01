@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Status {
+  ACTIVE
+  PAUSED
+  BLOCKED
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String?
+  email       String   @unique
+  password    String?  // hashed; nullable for external providers
+  role        String   @default("USER")
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  shops       Shop[]   @relation("OwnerShops")
+  shopProducts ShopProduct[]
+  customerOrders Order[] @relation("CustomerOrders")
+}
+
+model UnitType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  short     String?
+  // Raw or numeric unit value. Admins may enter either a number or free-form text.
+  // `value` stores a parsed numeric value (nullable); `valueRaw` stores raw text if provided.
+  value     Float?
+  valueRaw  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  products  Product[]
+}
+
+model Product {
+  id           String    @id @default(cuid())
+  sku          String?   @unique
+  name         String    @unique
+  description  String?
+  defaultUnit  UnitType? @relation(fields: [defaultUnitId], references: [id])
+  defaultUnitId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  shopProducts ShopProduct[]
+}
+
+model Category {
+  id         String     @id @default(cuid())
+  name       String
+  slug       String?    @unique
+  parentId   String?
+  parent     Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children   Category[] @relation("CategoryChildren")
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([parentId, name])
+}
+
+model Shop {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  ownerId   String?
+  owner     User?    @relation("OwnerShops", fields: [ownerId], references: [id])
+  status    Status   @default(ACTIVE)
+  approval  ApprovalStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  shopProducts ShopProduct[]
+  orders    Order[]
+}
+
+// Vendor-specific product listings in shops (vendors add their own)
+model ShopProduct {
+  id         String   @id @default(cuid())
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  vendorId   String
+  vendor     User     @relation(fields: [vendorId], references: [id])
+  price      Float
+  unitId     String?
+  createdAt  DateTime @default(now())
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  shopId     String
+  shop       Shop        @relation(fields: [shopId], references: [id])
+  vendorId   String?
+  vendor     User?       @relation(fields: [vendorId], references: [id])
+  customerId String?
+  customer   User?       @relation("CustomerOrders", fields: [customerId], references: [id])
+  pinCode    String?
+  area       String?
+  total      Float
+  status     OrderStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  items      OrderItem[]
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  quantity  Float
+  unit      String?
+  price     Float
+  createdAt DateTime @default(now())
+}
