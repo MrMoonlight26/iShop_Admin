@@ -331,6 +331,7 @@ export default function CategoriesPage() {
               {items.map((c: any) => (
                 <React.Fragment key={c.id}>
                   <TableRow>
+                    <TableCell className="text-xs font-mono">{c.id}</TableCell>
                     <TableCell>
                       {editingId === c.id ? (
                         <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -338,6 +339,9 @@ export default function CategoriesPage() {
                         c.name
                       )}
                     </TableCell>
+                    <TableCell>{c.code ?? ''}</TableCell>
+                    <TableCell>{c.shortCode ?? ''}</TableCell>
+                    <TableCell>{c.slug ?? ''}</TableCell>
                     <TableCell>
                       {editingId === c.id ? (
                         <select aria-label="Edit parent category" className="border-input rounded-md px-3 py-2 text-foreground min-w-[160px]" value={isLoading ? '__loading__' : (editParentId ?? '__top__')} onChange={(e) => setEditParentId(e.target.value === '__top__' ? null : (e.target.value || null))} disabled={isLoading}>
@@ -355,9 +359,15 @@ export default function CategoriesPage() {
                           )}
                         </select>
                       ) : (
-                        c.parentId ? (items.find((x) => x.id === c.parentId)?.name ?? '') : ''
+                        c.parentId ? (items.find((x) => x.id === c.parentId)?.name ?? c.parentId) : ''
                       )}
                     </TableCell>
+                    <TableCell>{c.active ? 'Yes' : 'No'}</TableCell>
+                    <TableCell>{c.level ?? ''}</TableCell>
+                    <TableCell className="text-xs">{c.path ?? ''}</TableCell>
+                    <TableCell>{c.createdBy ?? ''}</TableCell>
+                    <TableCell className="text-xs">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</TableCell>
+                    <TableCell className="text-xs">{c.updatedAt ? new Date(c.updatedAt).toLocaleString() : ''}</TableCell>
                     <TableCell className="text-right">
                       {editingId === c.id ? (
                         <div className="flex gap-2 justify-end">
@@ -374,8 +384,18 @@ export default function CategoriesPage() {
                   </TableRow>
                   {c.children && c.children.length > 0 && c.children.map((ch: any) => (
                     <TableRow key={ch.id} className="bg-muted">
+                      <TableCell className="text-xs font-mono">{ch.id}</TableCell>
                       <TableCell className="pl-8">↳ {ch.name}</TableCell>
+                      <TableCell>{ch.code ?? ''}</TableCell>
+                      <TableCell>{ch.shortCode ?? ''}</TableCell>
+                      <TableCell>{ch.slug ?? ''}</TableCell>
                       <TableCell>{c.name}</TableCell>
+                      <TableCell>{ch.active ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>{ch.level ?? ''}</TableCell>
+                      <TableCell className="text-xs">{ch.path ?? ''}</TableCell>
+                      <TableCell>{ch.createdBy ?? ''}</TableCell>
+                      <TableCell className="text-xs">{ch.createdAt ? new Date(ch.createdAt).toLocaleString() : ''}</TableCell>
+                      <TableCell className="text-xs">{ch.updatedAt ? new Date(ch.updatedAt).toLocaleString() : ''}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                           <Button onClick={() => openEdit(ch)} variant="outline">Edit</Button>
