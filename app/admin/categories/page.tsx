@@ -41,6 +41,8 @@ export default function CategoriesPage() {
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
   const [pageNumber, setPageNumber] = useState(0)
   const [pageSize, setPageSize] = useState(20)
+  const [totalElements, setTotalElements] = useState<number | null>(null)
+  const [totalPages, setTotalPages] = useState<number | null>(null)
 
   // modal & form state
   const [viewItem, setViewItem] = useState<any | null>(null)
@@ -85,6 +87,13 @@ export default function CategoriesPage() {
       if (data && data.content) {
         // paged response expected by new API
         setItems(data.content)
+        // populate pagination metadata when available
+        if (data.page) {
+          setPageNumber(typeof data.page.number === 'number' ? Number(data.page.number) : 0)
+          setPageSize(typeof data.page.size === 'number' ? Number(data.page.size) : pageSize)
+          setTotalElements(typeof data.page.totalElements === 'number' ? Number(data.page.totalElements) : null)
+          setTotalPages(typeof data.page.totalPages === 'number' ? Number(data.page.totalPages) : null)
+        }
       } else if (Array.isArray(data)) {
         // legacy full-array return: filter/sort/page client-side
         let arr = data as any[]
@@ -101,8 +110,12 @@ export default function CategoriesPage() {
         })
         const start = pageNumber * pageSize
         setItems(arr.slice(start, start + pageSize))
+        setTotalElements(arr.length)
+        setTotalPages(Math.max(1, Math.ceil(arr.length / pageSize)))
       } else {
         setItems([])
+        setTotalElements(0)
+        setTotalPages(1)
       }
     } catch (e) {
       setItems([])
@@ -375,6 +388,21 @@ export default function CategoriesPage() {
               ))}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">Total: {totalElements ?? '—'}</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); fetchList() }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+              <div className="text-sm">Page { (pageNumber + 1) }{ totalPages ? ` of ${totalPages}` : '' }</div>
+              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); fetchList() }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
+              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-1">
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
         </div>
         <CardFooter />
 
