@@ -2,11 +2,37 @@ import Link from 'next/link'
 
 interface Props { params: { id: string } }
 
-export default async function ShopDetail({ params }: Props) {
-  const { id } = params
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-  const r = await fetch(`${base}/api/admin/shops?id=${id}`, { cache: 'no-store' })
-  if (!r.ok) return (<div className="p-6">Shop not found</div>)
+export default async function ShopDetail(props: Props) {
+  // `params` may itself be a promise in the app router environment; await params directly before using its properties
+  const { params } = props
+  const { id } = (await Promise.resolve(params)) as { id: string }
+  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+  let url = `${API_BASE || ''}/api/admin/shops?id=${id}`
+  if (!API_BASE) url = `/api/admin/shops?id=${id}`
+  let r: Response
+  try {
+    r = await fetch(url, { cache: 'no-store' })
+  } catch (err: any) {
+    const msg = err?.message || String(err)
+    return (
+      <div className="p-6">
+        <div className="mb-2 font-medium">Error fetching shop</div>
+        <div className="text-sm text-muted-foreground">Attempted: <span className="font-mono">{url}</span></div>
+        <div className="mt-2 text-xs text-red-600">{msg}</div>
+      </div>
+    )
+  }
+
+  if (!r.ok) {
+    const body = await r.text().catch(() => '')
+    return (
+      <div className="p-6">
+        <div className="mb-2 font-medium">Shop not found</div>
+        <div className="text-sm text-muted-foreground">Fetched: <span className="font-mono">{url}</span> (status: {r.status})</div>
+        {body && <pre className="mt-2 text-xs bg-gray-100 p-2 rounded">{body}</pre>}
+      </div>
+    )
+  }
   const shop = await r.json()
 
   const ownerType = shop.ownerType
@@ -35,7 +61,7 @@ export default async function ShopDetail({ params }: Props) {
           )}
 
           <div className="mt-4 text-sm text-muted-foreground">Created</div>
-          <div className="mt-1 text-sm">{shop.createdAt.toISOString()}</div>
+          <div className="mt-1 text-sm">{shop.createdAt ? new Date(shop.createdAt).toLocaleString() : ''}</div>
         </div>
 
         <div className="p-4 border rounded">
