@@ -13,6 +13,8 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 export default function UnitsPage() {
@@ -27,29 +29,77 @@ export default function UnitsPage() {
   const [editShort, setEditShort] = useState('')
   const [editValueInput, setEditValueInput] = useState('')
 
+  // API base and pagination
+  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+  const [pageNumber, setPageNumber] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalElements, setTotalElements] = useState<number | null>(null)
+  const [totalPages, setTotalPages] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [deleteCandidate, setDeleteCandidate] = useState<any | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
   // loading states
   const [isCreating, setIsCreating] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const { data: session, status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
+    if (status === 'unauthenticated') return router.push('/auth/signin')
+    if (status === 'authenticated') {
+      if ((session as any)?.user?.role !== 'ADMIN') return router.push('/')
+      // When visiting the generic /admin/units route, send admins to the Unit Types page
+      router.push('/admin/units/types')
+    }
   }, [status, session])
 
   // Basic client-side check: show nothing while auth status unknown
   if (status === 'loading') return null
 
   useEffect(() => {
-    fetch('/api/admin/units', { credentials: 'same-origin' }).then(async (r) => {
-      if (!r.ok) return setUnits([])
-      const data = await r.json()
-      setUnits(data)
-    })
-  }, [])
+    fetchList()
+  }, [pageNumber, pageSize])
+
+  async function fetchList() {
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('page', String(pageNumber))
+      params.set('size', String(pageSize))
+
+      let url = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/types?${params.toString()}`
+      if (!API_BASE) url = `/api/v1/admin/units/types?${params.toString()}`
+
+      let r = await fetch(url, { credentials: 'same-origin' })
+      if (r.status === 404) {
+        r = await fetch(`${API_BASE ? API_BASE : ''}/api/admin/units?${params.toString()}`, { credentials: 'same-origin' })
+      }
+      if (!r.ok) { setUnits([]); setIsLoading(false); return }
+      const raw = await r.json()
+
+      // Support paged shape
+      const content = raw.content ?? raw
+      const items = Array.isArray(content) ? content : []
+      setUnits(items)
+
+      if (raw.page) {
+        setPageNumber(typeof raw.page.number === 'number' ? Number(raw.page.number) : 0)
+        setPageSize(typeof raw.page.size === 'number' ? Number(raw.page.size) : pageSize)
+        setTotalElements(typeof raw.page.totalElements === 'number' ? Number(raw.page.totalElements) : null)
+        setTotalPages(typeof raw.page.totalPages === 'number' ? Number(raw.page.totalPages) : null)
+      } else {
+        setTotalElements(Array.isArray(content) ? (content as any[]).length : null)
+        setTotalPages(Array.isArray(content) ? Math.max(1, Math.ceil((content as any[]).length / pageSize)) : null)
+      }
+    } catch (err) {
+      setUnits([])
+      setTotalElements(0)
+      setTotalPages(1)
+      toast.error(String(err))
+    } finally { setIsLoading(false) }
+  }
 
   async function createUnit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,10 +123,12 @@ export default function UnitsPage() {
     if (parsed.number !== null) body.value = parsed.number
     if (parsed.raw) body.valueRaw = parsed.raw
 
-    const promise = fetch('/api/admin/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) }).then(async (res) => {
+    const promise = (async () => {
+      let res = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      if (res.status === 404) res = await fetch('/api/admin/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       if (!res.ok) throw new Error(await res.text())
       return res.json()
-    })
+    })()
 
     try {
       const newUnit = await toast.promise(promise, {
@@ -134,10 +186,12 @@ export default function UnitsPage() {
     if (parsed.number !== null) body.value = parsed.number
     if (parsed.raw) body.valueRaw = parsed.raw
 
-    const promise = fetch('/api/admin/units', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) }).then(async (res) => {
+    const promise = (async () => {
+      let res = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      if (res.status === 404) res = await fetch('/api/admin/units', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       if (!res.ok) throw new Error(await res.text())
       return res.json()
-    })
+    })()
 
     try {
       const updated = await toast.promise(promise, {
@@ -164,26 +218,25 @@ export default function UnitsPage() {
     }
   }
 
-  async function deleteUnit(id: string) {
-    if (!confirm('Delete this unit?')) return
-    setDeletingId(id)
-    const promise = fetch('/api/admin/units', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id }) }).then(async (res) => {
-      if (!res.ok) throw new Error(await res.text())
-      return true
-    })
+  function confirmDelete(unit: any) { setDeleteCandidate(unit) }
 
+  async function doDelete() {
+    if (!deleteCandidate) return
+    setDeleting(deleteCandidate.id)
     try {
-      await toast.promise(promise, {
-        loading: 'Deleting unit...',
-        success: 'Unit deleted',
-        error: (err) => `Delete failed: ${err?.message || err}`,
-      })
-      setUnits((units as any[]).filter((u: any) => (u as any).id !== id))
-      try { window.dispatchEvent(new CustomEvent('units:updated', { detail: { action: 'delete', id } })) } catch (e) {}
+      let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${deleteCandidate.id}`, { method: 'DELETE', credentials: 'same-origin' })
+      if (r.status === 404) {
+        r = await fetch('/api/admin/units', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
+      }
+      if (!r.ok) throw new Error(await r.text())
+      toast.success('Unit deleted')
+      setUnits((units as any[]).filter((u: any) => (u as any).id !== deleteCandidate.id))
+      try { window.dispatchEvent(new CustomEvent('units:updated', { detail: { action: 'delete', id: deleteCandidate.id } })) } catch (e) {}
+      setDeleteCandidate(null)
     } catch (err) {
-      // handled by toast
+      toast.error(String(err))
     } finally {
-      setDeletingId(null)
+      setDeleting(null)
     }
   }
 
@@ -250,7 +303,7 @@ export default function UnitsPage() {
                     ) : (
                       <div className="flex gap-2 justify-end">
                         <Button onClick={() => startEdit(u)} variant="outline">Edit</Button>
-                        <Button onClick={() => deleteUnit(u.id)} className="bg-red-600" disabled={deletingId === u.id}>{deletingId === u.id ? 'Deleting...' : 'Delete'}</Button>
+                        <Button onClick={() => confirmDelete(u)} className="bg-red-600" disabled={deleting === u.id}>{deleting === u.id ? 'Deleting...' : 'Delete'}</Button>
                       </div>
                     )}
                   </TableCell>
@@ -258,8 +311,40 @@ export default function UnitsPage() {
               ))}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">Total: {totalElements ?? '—'}</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); fetchList() }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+              <div className="text-sm">Page { (pageNumber + 1) }{ totalPages ? ` of ${totalPages}` : '' }</div>
+              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); fetchList() }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
+              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-1">
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
         </div>
         <CardFooter />
+
+        {/* Delete confirmation */}
+        <Sheet open={!!deleteCandidate} onOpenChange={(open) => { if (!open) setDeleteCandidate(null) }}>
+          <SheetContent side="right">
+            <SheetHeader>
+              <SheetTitle>Confirm Delete</SheetTitle>
+              <SheetDescription>Deleting this unit will remove it and references from products.</SheetDescription>
+            </SheetHeader>
+            <div className="p-4">
+              <div className="text-sm">Are you sure you want to delete <strong>{deleteCandidate?.name}</strong>?</div>
+              <div className="flex gap-2 justify-end mt-4">
+                <Button variant="secondary" onClick={() => setDeleteCandidate(null)}>Cancel</Button>
+                <Button onClick={doDelete} className="bg-red-600" disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
       </Card>
     </div>
   )
