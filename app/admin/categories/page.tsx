@@ -80,7 +80,7 @@ export default function CategoriesPage() {
 
       // try v1 first, fallback to legacy endpoint (API_BASE can point to separate backend)
       let r = await fetch(`${API_BASE}/api/v1/admin/categories?${params.toString()}`, { credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch(`${API_BASE}/api/admin/categories?${params.toString()}`, { credentials: 'same-origin' })
+      if (r.status === 404) r = await fetch(`${API_BASE}/api/v1/admin/categories?${params.toString()}`, { credentials: 'same-origin' })
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
 
@@ -159,13 +159,13 @@ export default function CategoriesPage() {
         r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
         if (r.status === 404) {
           // fallback to legacy endpoint
-          r = await fetch(`${API_BASE}/api/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+          r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
         }
       } else {
         r = await fetch(`${API_BASE}/api/v1/admin/categories/${formValues.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
         if (r.status === 404) {
           // fallback to legacy endpoint
-          r = await fetch(`${API_BASE}/api/admin/categories`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
+          r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
         }
       }
       if (!r || !r.ok) throw new Error(await (r ? r.text() : Promise.resolve('No response')))
@@ -191,7 +191,7 @@ export default function CategoriesPage() {
       // v1 deletes use path param
       let r = await fetch(`${API_BASE}/api/v1/admin/categories/${deleteCandidate.id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch(`${API_BASE}/api/admin/categories`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
+        r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
       }
       if (!r.ok) throw new Error(await r.text())
       toast.success('Category deleted')
@@ -214,7 +214,7 @@ export default function CategoriesPage() {
     const promise = (async () => {
       let res = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       if (res.status === 404) {
-        res = await fetch(`${API_BASE}/api/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+        res = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       }
       if (!res.ok) throw new Error(await res.text())
       return res.json()
@@ -260,7 +260,7 @@ export default function CategoriesPage() {
       let res = await fetch(`${API_BASE}/api/v1/admin/categories/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ name: editName, slug: editSlug, parentId: editParentId }) })
       if (res.status === 404) {
         // fallback to legacy PUT
-        res = await fetch(`${API_BASE}/api/admin/categories`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: editingId, name: editName, slug: editSlug, parentId: editParentId }) })
+        res = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: editingId, name: editName, slug: editSlug, parentId: editParentId }) })
       }
       if (!res.ok) throw new Error(await res.text())
       return res.json()

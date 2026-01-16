@@ -10,9 +10,9 @@ import { ActiveThemeProvider } from "@/components/active-theme";
 import NextSessionProvider from '@/components/providers/session-provider'
 
 export const metadata: Metadata = {
-  title: "IShop Dashboard",
+  title: "The CornerShop - Admin Dashboard",
   description:
-    "IShop Dashboard is an admin panel for managing products, orders, and users in the IShop e-commerce platform.",
+    "The CornerShop Admin Dashboard for managing products, orders, vendors, and shops.",
 };
 
 export default async function RootLayout({

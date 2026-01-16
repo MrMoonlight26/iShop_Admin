@@ -51,8 +51,8 @@ export default function UnitClassesPage() {
       let r = await fetch(url, { credentials: 'same-origin' })
       if (r.status === 404) {
         // fallback to legacy endpoint
-        const fallback = `${API_BASE ? API_BASE : ''}/api/admin/units/classes?${params.toString()}`
-        r = await fetch(!API_BASE ? `/api/admin/units/classes?${params.toString()}` : fallback, { credentials: 'same-origin' })
+        const fallback = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes?${params.toString()}`
+        r = await fetch(!API_BASE ? `/api/v1/admin/units/classes?${params.toString()}` : fallback, { credentials: 'same-origin' })
       }
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
@@ -94,10 +94,10 @@ export default function UnitClassesPage() {
       }
       let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
       if (!API_BASE && r.status === 404) {
-        r = await fetch('/api/admin/units/classes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        r = await fetch('/api/v1/admin/units/classes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
       } else if (r.status === 404) {
         // try legacy
-        r = await fetch(`${API_BASE}/api/admin/units/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        r = await fetch(`${API_BASE}/api/v1/admin/units/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
       }
       if (!r.ok) throw new Error(await r.text())
       await r.json()

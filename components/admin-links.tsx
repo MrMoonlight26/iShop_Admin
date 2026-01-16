@@ -27,7 +27,7 @@ export function AdminLinks() {
       {open && (
         <div className="mt-2 flex flex-col gap-1">
           <a href="/admin/catalog" className="px-2 py-1 rounded hover:bg-muted">Central Catalog</a>
-          <a href="/admin/dashboard" className="px-2 py-1 rounded hover:bg-muted">Dashboard</a>
+          <a href="/dashboard" className="px-2 py-1 rounded hover:bg-muted">Dashboard</a>
 
           <div className="pl-0">
             <div className="px-2 py-1 rounded font-medium">Unit Management</div>

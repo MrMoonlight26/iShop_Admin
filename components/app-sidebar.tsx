@@ -2,31 +2,18 @@
 
 import * as React from "react";
 import {
-  IconCamera,
-  IconChartBar,
   IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconInnerShadowTop,
-  IconListDetails,
-  IconReport,
-  IconSearch,
+  IconBuildingStore,
+  IconShoppingCart,
+  IconChartBar,
   IconSettings,
+  IconHelp,
   IconUsers,
 } from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
-import dynamic from 'next/dynamic'
-
-// Dynamically load admin links to keep sidebar lightweight and avoid SSR issues
-const AdminLinks = dynamic(() => import('@/components/admin-links').then(m => m.AdminLinks), { ssr: false })
 import {
   Sidebar,
   SidebarContent,
@@ -39,9 +26,9 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Admin User",
+    email: "admin@cornershop.com",
+    avatar: "/avatars/admin.jpg",
   },
   navMain: [
     {
@@ -50,106 +37,69 @@ const data = {
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
+      title: "Vendors Management",
+      url: "/admin/users",
+      icon: IconUsers,
+    },
+    {
+      title: "Shop Management",
+      url: "/admin/shops",
+      icon: IconBuildingStore,
+    },
+    {
+      title: "Catalog Management",
       url: "#",
-      icon: IconListDetails,
+      icon: IconShoppingCart,
+      items: [
+        {
+          title: "Unit Types Management",
+          url: "/admin/units",
+        },
+        {
+          title: "Categories",
+          url: "/admin/categories",
+        },
+        {
+          title: "Business Categories",
+          url: "/admin/business-categories",
+        },
+        {
+          title: "Products",
+          url: "/admin/catalog",
+        },
+      ],
+    },
+    {
+      title: "Orders Management",
+      url: "#",
+      icon: IconShoppingCart,
+      items: [
+        {
+          title: "Orders",
+          url: "/admin/orders",
+        },
+        {
+          title: "Returns",
+          url: "#",
+        },
+      ],
     },
     {
       title: "Analytics",
       url: "#",
       icon: IconChartBar,
     },
-    {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
   ],
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
+      url: "/admin/settings",
       icon: IconSettings,
     },
     {
       title: "Get Help",
       url: "#",
       icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
     },
   ],
 };
@@ -164,10 +114,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
+              <a href="/dashboard">
+                <div className="flex items-center justify-center w-5 h-5 rounded bg-primary text-primary-foreground font-bold text-sm">
+                  CS
+                </div>
                 <span className="text-base font-semibold">
-                  Orcish Dashboard
+                  The CornerShop
                 </span>
               </a>
             </SidebarMenuButton>
@@ -176,14 +128,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-
-        {/* Admin quick links (visible only for ADMIN users) */}
-        <div className="mt-4 px-2">
-          {/* Client-side session check to show admin links */}
-          <AdminLinks />
-        </div>
-
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

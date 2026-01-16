@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
 import {
   Card,
   CardAction,
@@ -11,18 +12,33 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { formatErrorMessage } from '@/lib/api-helpers'
 
 export function AdminCards() {
   const [summary, setSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadSummary = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await fetch('/api/v1/admin/summary', { credentials: 'same-origin' })
+      if (!response.ok) {
+        throw new Error(`Failed to load summary: ${response.status}`)
+      }
+      const data = await response.json()
+      setSummary(data)
+    } catch (err) {
+      setError(formatErrorMessage(err))
+      setSummary(null)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    fetch('/api/admin/summary', { credentials: 'same-origin' })
-      .then(async (r) => {
-        if (!r.ok) return setSummary(null)
-        const data = await r.json()
-        setSummary(data)
-      })
-      .catch(() => setSummary(null))
+    loadSummary()
   }, [])
 
   const items = [
@@ -35,9 +51,11 @@ export function AdminCards() {
 
   async function exportOrders() {
     try {
-      const r = await fetch('/api/admin/orders/export', { credentials: 'same-origin' })
-      if (!r.ok) { alert('Export failed'); return }
-      const blob = await r.blob()
+      const response = await fetch('/api/v1/admin/orders/export', { credentials: 'same-origin' })
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+      const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -46,8 +64,8 @@ export function AdminCards() {
       a.click()
       a.remove()
       URL.revokeObjectURL(url)
-    } catch (e) {
-      alert('Export failed')
+    } catch (err) {
+      setError(formatErrorMessage(err))
     }
   }
 
@@ -132,28 +150,38 @@ export function AdminCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-      {items.map((it) => (
-        <Card key={it.key} className="@container/card">
-          <CardHeader>
-            <CardDescription>{it.title}</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums">
-              {summary ? summary[it.key] : '—'}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">Admin</Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex items-center">
-            <div className="flex-1">
-              <Link href={it.href} className="text-primary hover:underline">
-                Manage {it.title}
-              </Link>
-              {renderExtra(it)}
-            </div>
-          </CardFooter>
-        </Card>
-      ))}
+    <div className="px-4 lg:px-6">
+      {loading ? (
+        <div className="py-12 flex justify-center">
+          <LoadingSpinner text="Loading summary..." />
+        </div>
+      ) : error ? (
+        <ErrorAlert error={error} onRetry={loadSummary} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+          {items.map((it) => (
+            <Card key={it.key} className="@container/card">
+              <CardHeader>
+                <CardDescription>{it.title}</CardDescription>
+                <CardTitle className="text-2xl font-semibold tabular-nums">
+                  {summary ? summary[it.key] : '—'}
+                </CardTitle>
+                <CardAction>
+                  <Badge variant="outline">Admin</Badge>
+                </CardAction>
+              </CardHeader>
+              <CardFooter className="flex items-center">
+                <div className="flex-1">
+                  <Link href={it.href} className="text-primary hover:underline">
+                    Manage {it.title}
+                  </Link>
+                  {renderExtra(it)}
+                </div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

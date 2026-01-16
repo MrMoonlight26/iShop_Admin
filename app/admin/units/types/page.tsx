@@ -48,7 +48,7 @@ export default function UnitTypesPage() {
     try {
       const url = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes`
       let r = await fetch(url, { credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch('/api/admin/units/classes', { credentials: 'same-origin' })
+      if (r.status === 404) r = await fetch('/api/v1/admin/units/classes', { credentials: 'same-origin' })
       if (!r.ok) return setClasses([])
       const data = await r.json()
       const content = data.content ?? data
@@ -71,7 +71,7 @@ export default function UnitTypesPage() {
 
       let r = await fetch(url, { credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch(`${API_BASE ? API_BASE : ''}/api/admin/units/types?${params.toString()}`, { credentials: 'same-origin' })
+        r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types?${params.toString()}`, { credentials: 'same-origin' })
       }
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
@@ -120,10 +120,10 @@ export default function UnitTypesPage() {
       let r: Response | undefined
       if (formMode === 'create') {
         r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-        if (r.status === 404) r = await fetch('/api/admin/units/types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        if (r.status === 404) r = await fetch('/api/v1/admin/units/types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
       } else {
         r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${formValues.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-        if (r.status === 404) r = await fetch('/api/admin/units/types', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
+        if (r.status === 404) r = await fetch('/api/v1/admin/units/types', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
       }
 
       if (!r || !r.ok) throw new Error(await (r ? r.text() : Promise.resolve('No response')))
@@ -147,7 +147,7 @@ export default function UnitTypesPage() {
     setDeleting(confirmDeleteId)
     try {
       let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${confirmDeleteId}`, { method: 'DELETE', credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch('/api/admin/units/types', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: confirmDeleteId }) })
+      if (r.status === 404) r = await fetch('/api/v1/admin/units/types', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: confirmDeleteId }) })
       if (!r.ok) throw new Error(await r.text())
       toast.success('Unit type deleted')
       setConfirmDeleteId(null)

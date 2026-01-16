@@ -7,8 +7,8 @@ export default async function ShopDetail(props: Props) {
   const { params } = props
   const { id } = (await Promise.resolve(params)) as { id: string }
   const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
-  let url = `${API_BASE || ''}/api/admin/shops?id=${id}`
-  if (!API_BASE) url = `/api/admin/shops?id=${id}`
+  let url = `${API_BASE || ''}/api/v1/admin/shops?id=${id}`
+  if (!API_BASE) url = `/api/v1/admin/shops?id=${id}`
   let r: Response
   try {
     r = await fetch(url, { cache: 'no-store' })

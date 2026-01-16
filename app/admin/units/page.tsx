@@ -74,7 +74,7 @@ export default function UnitsPage() {
 
       let r = await fetch(url, { credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch(`${API_BASE ? API_BASE : ''}/api/admin/units?${params.toString()}`, { credentials: 'same-origin' })
+        r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units?${params.toString()}`, { credentials: 'same-origin' })
       }
       if (!r.ok) { setUnits([]); setIsLoading(false); return }
       const raw = await r.json()
@@ -125,7 +125,7 @@ export default function UnitsPage() {
 
     const promise = (async () => {
       let res = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
-      if (res.status === 404) res = await fetch('/api/admin/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      if (res.status === 404) res = await fetch('/api/v1/admin/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     })()
@@ -188,7 +188,7 @@ export default function UnitsPage() {
 
     const promise = (async () => {
       let res = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
-      if (res.status === 404) res = await fetch('/api/admin/units', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      if (res.status === 404) res = await fetch('/api/v1/admin/units', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     })()
@@ -201,7 +201,7 @@ export default function UnitsPage() {
       })
       // refresh list after update to avoid local merge complexity
       try {
-        const listRes = await fetch('/api/admin/units', { credentials: 'same-origin' })
+        const listRes = await fetch('/api/v1/admin/units', { credentials: 'same-origin' })
         if (listRes.ok) {
           const list = await listRes.json()
           setUnits(list)
@@ -226,7 +226,7 @@ export default function UnitsPage() {
     try {
       let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${deleteCandidate.id}`, { method: 'DELETE', credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch('/api/admin/units', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
+        r = await fetch('/api/v1/admin/units', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
       }
       if (!r.ok) throw new Error(await r.text())
       toast.success('Unit deleted')
