@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { buildApiUrl } from '@/lib/api-config'
 
 export default function CategoriesPage() {
   const [items, setItems] = useState<any[]>([])
@@ -55,8 +56,7 @@ export default function CategoriesPage() {
 
   const { data: session, status } = useSession()
   const router = useRouter()
-  // If you run the backend separately, set NEXT_PUBLIC_API_BASE_URL to e.g. http://localhost:8080
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/auth/signin')
@@ -79,8 +79,14 @@ export default function CategoriesPage() {
       if (q) params.set('q', q)
 
       // try v1 first, fallback to legacy endpoint (API_BASE can point to separate backend)
-      let r = await fetch(`${API_BASE}/api/v1/admin/categories?${params.toString()}`, { credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch(`${API_BASE}/api/v1/admin/categories?${params.toString()}`, { credentials: 'same-origin' })
+      const url = buildApiUrl('/api/v1/admin/categories', {
+        page: pageNumber,
+        size: pageSize,
+        sort: `${sortBy},${sortDir}`,
+        ...(q ? { q } : {})
+      })
+      let r = await fetch(url, { credentials: 'same-origin' })
+      if (r.status === 404) r = await fetch(url, { credentials: 'same-origin' })
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
 
@@ -156,16 +162,17 @@ export default function CategoriesPage() {
       // v1 API: POST /api/v1/admin/categories (create) and PATCH /api/v1/admin/categories/{id} (update)
       let r: Response | undefined
       if (formMode === 'create') {
-        r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        const url = buildApiUrl('/api/v1/admin/categories')
+        r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
         if (r.status === 404) {
-          // fallback to legacy endpoint
-          r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+          r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
         }
       } else {
-        r = await fetch(`${API_BASE}/api/v1/admin/categories/${formValues.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        const url = buildApiUrl(`/api/v1/admin/categories/${formValues.id}`)
+        r = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
         if (r.status === 404) {
-          // fallback to legacy endpoint
-          r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
+          const legacyUrl = buildApiUrl('/api/v1/admin/categories')
+          r = await fetch(legacyUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
         }
       }
       if (!r || !r.ok) throw new Error(await (r ? r.text() : Promise.resolve('No response')))
@@ -189,9 +196,11 @@ export default function CategoriesPage() {
     setDeleting(true)
     try {
       // v1 deletes use path param
-      let r = await fetch(`${API_BASE}/api/v1/admin/categories/${deleteCandidate.id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' })
+      const url = buildApiUrl(`/api/v1/admin/categories/${deleteCandidate.id}`)
+      let r = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
+        const legacyUrl = buildApiUrl('/api/v1/admin/categories')
+        r = await fetch(legacyUrl, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
       }
       if (!r.ok) throw new Error(await r.text())
       toast.success('Category deleted')
@@ -212,9 +221,10 @@ export default function CategoriesPage() {
     if (parentId) body.parentId = parentId
 
     const promise = (async () => {
-      let res = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      const url = buildApiUrl('/api/v1/admin/categories')
+      let res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       if (res.status === 404) {
-        res = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
       }
       if (!res.ok) throw new Error(await res.text())
       return res.json()
@@ -257,10 +267,11 @@ export default function CategoriesPage() {
     setSavingId(editingId)
     const promise = (async () => {
       // v1 uses PATCH with id in the URL
-      let res = await fetch(`${API_BASE}/api/v1/admin/categories/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ name: editName, slug: editSlug, parentId: editParentId }) })
+      const url = buildApiUrl(`/api/v1/admin/categories/${editingId}`)
+      let res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ name: editName, slug: editSlug, parentId: editParentId }) })
       if (res.status === 404) {
-        // fallback to legacy PUT
-        res = await fetch(`${API_BASE}/api/v1/admin/categories`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: editingId, name: editName, slug: editSlug, parentId: editParentId }) })
+        const legacyUrl = buildApiUrl('/api/v1/admin/categories')
+        res = await fetch(legacyUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: editingId, name: editName, slug: editSlug, parentId: editParentId }) })
       }
       if (!res.ok) throw new Error(await res.text())
       return res.json()

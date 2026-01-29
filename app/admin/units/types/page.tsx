@@ -11,11 +11,12 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { toast } from 'sonner'
+import { buildApiUrl } from '@/lib/api-config'
 
 export default function UnitTypesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+
 
   const [items, setItems] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -46,9 +47,9 @@ export default function UnitTypesPage() {
 
   async function fetchClasses() {
     try {
-      const url = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes`
+      let url = buildApiUrl('/api/v1/admin/units/classes')
       let r = await fetch(url, { credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch('/api/v1/admin/units/classes', { credentials: 'same-origin' })
+      if (r.status === 404) r = await fetch(url, { credentials: 'same-origin' })
       if (!r.ok) return setClasses([])
       const data = await r.json()
       const content = data.content ?? data
@@ -61,17 +62,15 @@ export default function UnitTypesPage() {
   async function fetchList() {
     setIsLoading(true)
     try {
-      const params = new URLSearchParams()
-      params.set('page', String(pageNumber))
-      params.set('size', String(pageSize))
-      if (q) params.set('q', q)
-
-      let url = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/types?${params.toString()}`
-      if (!API_BASE) url = `/api/v1/admin/units/types?${params.toString()}`
-
+      const params: Record<string, string | number> = {
+        page: pageNumber,
+        size: pageSize,
+        ...(q ? { q } : {})
+      }
+      let url = buildApiUrl('/api/v1/admin/units/types', params)
       let r = await fetch(url, { credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types?${params.toString()}`, { credentials: 'same-origin' })
+        r = await fetch(url, { credentials: 'same-origin' })
       }
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
@@ -119,11 +118,16 @@ export default function UnitTypesPage() {
 
       let r: Response | undefined
       if (formMode === 'create') {
-        r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-        if (r.status === 404) r = await fetch('/api/v1/admin/units/types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        let url = buildApiUrl('/api/v1/admin/units/types')
+        r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        if (r.status === 404) r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
       } else {
-        r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${formValues.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-        if (r.status === 404) r = await fetch('/api/v1/admin/units/types', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
+        let url = buildApiUrl(`/api/v1/admin/units/types/${formValues.id}`)
+        r = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        if (r.status === 404) {
+          url = buildApiUrl('/api/v1/admin/units/types')
+          r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
+        }
       }
 
       if (!r || !r.ok) throw new Error(await (r ? r.text() : Promise.resolve('No response')))
@@ -146,8 +150,12 @@ export default function UnitTypesPage() {
     if (!confirmDeleteId) return
     setDeleting(confirmDeleteId)
     try {
-      let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${confirmDeleteId}`, { method: 'DELETE', credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch('/api/v1/admin/units/types', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: confirmDeleteId }) })
+      let url = buildApiUrl(`/api/v1/admin/units/types/${confirmDeleteId}`)
+      let r = await fetch(url, { method: 'DELETE', credentials: 'same-origin' })
+      if (r.status === 404) {
+        url = buildApiUrl('/api/v1/admin/units/types')
+        r = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: confirmDeleteId }) })
+      }
       if (!r.ok) throw new Error(await r.text())
       toast.success('Unit type deleted')
       setConfirmDeleteId(null)

@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { buildApiUrl } from '@/lib/api-config'
 
 export default function ShopsPage() {
   const [shops, setShops] = useState<any[]>([])
@@ -26,7 +27,7 @@ export default function ShopsPage() {
   const [error, setError] = useState<string | null>(null)
   const { data: session, status } = useSession()
   const router = useRouter()
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+  // const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/auth/signin')
@@ -51,15 +52,13 @@ export default function ShopsPage() {
     try {
       setLoading(true)
       setError(null)
-      const params = new URLSearchParams()
-      if (typeof pageNumber === 'number') params.set('page', String(pageNumber))
-      if (pageSize) params.set('size', String(pageSize))
-      if (query) params.set('q', query)
-      if (statusFilter) params.set('status', statusFilter)
-      if (ownerTypeFilter) params.set('ownerType', ownerTypeFilter)
-
-      let url = `${API_BASE || ''}/api/v1/admin/shops?${params.toString()}`
-      if (!API_BASE) url = `/api/v1/admin/shops?${params.toString()}`
+      const url = buildApiUrl('/api/v1/admin/shops', {
+        page: pageNumber,
+        size: pageSize,
+        ...(query && { q: query }),
+        ...(statusFilter && { status: statusFilter }),
+        ...(ownerTypeFilter && { ownerType: ownerTypeFilter })
+      })
 
       const r = await fetch(url, { credentials: 'same-origin' })
       if (!r.ok) throw new Error(`Failed to load shops: ${r.status}`)

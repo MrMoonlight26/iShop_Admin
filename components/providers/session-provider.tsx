@@ -14,5 +14,5 @@ export default function NextSessionProvider({ children }: { children: React.Reac
       }
     : undefined
 
-  return <SessionProvider session={mockSession as any}>{children}</SessionProvider>
+  return <SessionProvider session={mockSession as unknown}>{children}</SessionProvider>
 }

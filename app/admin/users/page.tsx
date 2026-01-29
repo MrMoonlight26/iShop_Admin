@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { buildApiUrl } from '@/lib/api-config'
 
 export default function UsersPage() {
   const [users, setUsers] = useState([])
@@ -26,9 +27,14 @@ export default function UsersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [page, setPage] = useState(0)
+  const [size, setSize] = useState(20)
   const [query, setQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+
+  useEffect(() => {
+    fetchList()
+  }, [page, size, query, statusFilter])
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/auth/signin')
@@ -37,25 +43,27 @@ export default function UsersPage() {
 
   if (status === 'loading') return null
 
-  useEffect(() => {
-    fetchList()
-  }, [page, limit, query])
-
   async function fetchList() {
     try {
       setLoading(true)
       setError(null)
-      const params = new URLSearchParams()
-      if (page) params.set('page', String(page))
-      if (limit) params.set('limit', String(limit))
-      if (query) params.set('q', query)
-      const response = await fetch('/api/v1/admin/users?' + params.toString(), { credentials: 'same-origin' })
+      // Use "APPROVED" as default if no filter selected
+      const status = statusFilter === 'all' ? 'APPROVED' : statusFilter
+      const endpoint = `/api/v1/admin/vendors/status/${status}`
+      const response = await fetch(
+        buildApiUrl(endpoint, {
+          page,
+          size,
+          ...(query && { q: query })
+        }),
+        { credentials: 'same-origin' }
+      )
       if (!response.ok) {
-        throw new Error(`Failed to load users: ${response.status}`)
+        throw new Error(`Failed to load vendors: ${response.status}`)
       }
       const res = await response.json()
-      setUsers(res.data)
-      setTotal(res.total)
+      setUsers(res.content || [])
+      setTotal(res.totalElements || 0)
     } catch (err) {
       setError(formatErrorMessage(err))
       setUsers([])
@@ -64,19 +72,27 @@ export default function UsersPage() {
     }
   }
 
-  async function setStatus(id: string, newStatus: string) {
-    if (!confirm('Change status?')) return
+  async function setStatus(vendorId: string, newStatus: string) {
+    if (!confirm(`Change status to ${newStatus}?`)) return
     try {
-      setUpdatingId(id)
-      const response = await fetch('/api/v1/admin/users', { 
-        method: 'PUT', 
-        headers: { 'Content-Type': 'application/json' }, 
-        credentials: 'same-origin', 
-        body: JSON.stringify({ id, status: newStatus }) 
+      setUpdatingId(vendorId)
+      let endpoint = ''
+      if (newStatus === 'SUSPENDED') {
+        endpoint = `/api/v1/admin/vendors/${vendorId}/suspend`
+      } else if (newStatus === 'APPROVED') {
+        endpoint = `/api/v1/admin/vendors/${vendorId}/approve`
+      } else {
+        setError('Invalid status action')
+        return
+      }
+      const response = await fetch(buildApiUrl(endpoint), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin'
       })
       if (!response.ok) throw new Error(await response.text())
       const updated = await response.json()
-      setUsers((s: any[]) => s.map((u: any) => u.id === id ? updated : u))
+      setUsers((s: any[]) => s.map((u: any) => u.id === vendorId ? updated : u))
     } catch (err) {
       setError(formatErrorMessage(err))
     } finally {
@@ -85,29 +101,29 @@ export default function UsersPage() {
   }
 
   function renderPagination() {
-    const pages = Math.max(1, Math.ceil(total / limit))
+    const pages = Math.max(1, Math.ceil(total / size))
     return (
       <div className="flex items-center justify-between mt-6 gap-4">
         <div className="text-sm text-muted-foreground">Total: {total}</div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
             size="sm"
           >
             Prev
           </Button>
-          <div className="text-sm min-w-max">Page {page} of {pages}</div>
+          <div className="text-sm min-w-max">Page {page + 1} of {pages}</div>
           <Button
             variant="outline"
-            onClick={() => setPage((p) => Math.min(pages, p + 1))}
-            disabled={page === pages}
+            onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}
+            disabled={page >= pages - 1}
             size="sm"
           >
             Next
           </Button>
-          <select value={limit} onChange={(e) => { setLimit(parseInt(e.target.value, 10)); setPage(1) }} className="border rounded px-2 py-1 text-sm bg-background">
+          <select value={size} onChange={(e) => { setSize(parseInt(e.target.value, 10)); setPage(0) }} className="border rounded px-2 py-1 text-sm bg-background">
             <option value={10}>10</option>
             <option value={20}>20</option>
             <option value={50}>50</option>
@@ -126,13 +142,25 @@ export default function UsersPage() {
 
       {error && <ErrorAlert error={error} onRetry={fetchList} />}
 
-      <form onSubmit={(e) => { e.preventDefault(); setPage(1); fetchList() }} className="flex gap-2">
+      <form onSubmit={(e) => { e.preventDefault(); setPage(0); fetchList() }} className="flex gap-2 flex-wrap items-center">
         <Input
-          placeholder="Search vendors by name or email"
+          placeholder="Search vendors by name or mobile"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-1"
+          className="flex-1 min-w-[240px]"
         />
+        <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(0) }}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
+            <SelectItem value="APPROVED">Approved</SelectItem>
+            <SelectItem value="SUSPENDED">Suspended</SelectItem>
+            <SelectItem value="BLOCKED">Blocked</SelectItem>
+          </SelectContent>
+        </Select>
         <Button type="submit" variant="secondary">
           Search
         </Button>
@@ -157,29 +185,43 @@ export default function UsersPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-medium">{u.name}</div>
-                      <div className="text-sm text-muted-foreground">{u.email}</div>
+                      <div className="text-sm text-muted-foreground">{u.mobile}</div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={u.status === 'ACTIVE' ? 'default' : u.status === 'PAUSED' ? 'secondary' : 'destructive'}>
+                      <Badge variant={
+                        u.status === 'APPROVED' ? 'default' : 
+                        u.status === 'PENDING_APPROVAL' ? 'secondary' : 
+                        u.status === 'SUSPENDED' ? 'outline' :
+                        'destructive'
+                      }>
                         {u.status || 'UNKNOWN'}
                       </Badge>
-                      <Select value={u.status || 'ACTIVE'} onValueChange={(value) => setStatus(u.id, value)}>
-                        <SelectTrigger className="w-32" disabled={updatingId === u.id}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="PAUSED">Paused</SelectItem>
-                          <SelectItem value="BLOCKED">Blocked</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {u.status === 'PENDING_APPROVAL' && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => setStatus(u.id, 'APPROVED')}
+                          disabled={updatingId === u.id}
+                        >
+                          Approve
+                        </Button>
+                      )}
+                      {u.status === 'APPROVED' && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setStatus(u.id, 'SUSPENDED')}
+                          disabled={updatingId === u.id}
+                        >
+                          Suspend
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
               ))}
             </div>
           )}
-
           {renderPagination()}
         </>
       )}

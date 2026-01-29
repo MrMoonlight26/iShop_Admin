@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { buildApiUrl } from '@/lib/api-config'
 export default function CatalogPage() {
   const [products, setProducts] = useState<any[]>([])
 
@@ -101,14 +102,12 @@ export default function CatalogPage() {
 
   async function fetchList() {
     setIsLoading(true)
-    const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
-    const params = new URLSearchParams()
-    params.set('page', String(pageNumber))
-    params.set('size', String(pageSize))
-    if (query) params.set('q', query)
-
-    let url = `${API_BASE || ''}/api/v1/admin/catalog?${params.toString()}`
-    if (!API_BASE) url = `/api/v1/admin/catalog?${params.toString()}`
+    const params: Record<string, string | number> = {
+      page: pageNumber,
+      size: pageSize,
+      ...(query ? { q: query } : {})
+    }
+    const url = buildApiUrl('/api/v1/admin/catalog', params)
 
     try {
       const r = await fetch(url, { credentials: 'same-origin' })
@@ -130,7 +129,8 @@ export default function CatalogPage() {
   async function fetchUnits() {
     setIsUnitsLoading(true)
     try {
-      const r = await fetch('/api/v1/admin/units', { credentials: 'same-origin' })
+      const url = buildApiUrl('/api/v1/admin/units')
+      const r = await fetch(url, { credentials: 'same-origin' })
       if (!r.ok) {
         setUnits([])
         return
@@ -149,11 +149,19 @@ export default function CatalogPage() {
   async function fetchCategories() {
     setIsCategoriesLoading(true)
     try {
-      const r = await fetch('/api/v1/admin/categories', { credentials: 'same-origin' })
+      const url = buildApiUrl('/api/v1/admin/categories')
+      const r = await fetch(url, { credentials: 'same-origin' })
       if (!r.ok) { setCategories([]); return }
       const data = await r.json()
-      setCategories(data)
-      if (data && data.length && !createCategoryId) setCreateCategoryId(data[0].id)
+      // Normalize to array: handle paged (data.content) or array
+      let arr: any[] = []
+      if (Array.isArray(data)) {
+        arr = data
+      } else if (Array.isArray(data.content)) {
+        arr = data.content
+      }
+      setCategories(arr)
+      if (arr.length && !createCategoryId) setCreateCategoryId(arr[0].id)
     } catch (e) {
       console.error('Failed to load categories', e)
       setCategories([])
@@ -165,8 +173,7 @@ export default function CatalogPage() {
   async function createProduct(e?: React.FormEvent) {
     if (e) e.preventDefault()
     setIsCreating(true)
-    const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
-    const url = `${API_BASE || ''}/api/v1/admin/catalog`
+    const url = buildApiUrl('/api/v1/admin/catalog')
 
     const payload: any = {
       name: createName,
@@ -241,8 +248,7 @@ export default function CatalogPage() {
     e.preventDefault()
     if (!editingId) return
     setSavingId(editingId)
-    const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
-    const url = `${API_BASE || ''}/api/v1/admin/catalog`
+    const url = buildApiUrl('/api/v1/admin/catalog')
     const promise = fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: editingId, name: editName, description: editDesc, sku: editSku, defaultUnitId: editDefaultUnitId }) }).then(async (r) => {
       if (!r.ok) throw new Error(await r.text())
       return r.json()
@@ -267,8 +273,7 @@ export default function CatalogPage() {
   async function deleteProduct(id: string) {
     if (!confirm('Delete this product?')) return
     setDeletingId(id)
-    const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
-    const url = `${API_BASE || ''}/api/v1/admin/catalog`
+    const url = buildApiUrl('/api/v1/admin/catalog')
     const promise = fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id }) }).then(async (r) => {
       if (!r.ok) throw new Error(await r.text())
       return true

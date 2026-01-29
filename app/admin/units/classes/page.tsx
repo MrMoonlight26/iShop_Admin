@@ -8,13 +8,14 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { buildApiUrl } from '@/lib/api-config'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 
 export default function UnitClassesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+
 
   const [items, setItems] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -40,19 +41,15 @@ export default function UnitClassesPage() {
   async function fetchList() {
     setIsLoading(true)
     try {
-      const params = new URLSearchParams()
-      params.set('page', String(pageNumber))
-      params.set('size', String(pageSize))
-      if (q) params.set('q', q)
-
-      let url = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes?${params.toString()}`
-      if (!API_BASE) url = `/api/v1/admin/units/classes?${params.toString()}`
-
+      const params: Record<string, string | number> = {
+        page: pageNumber,
+        size: pageSize,
+        ...(q ? { q } : {})
+      }
+      let url = buildApiUrl('/api/v1/admin/units/classes', params)
       let r = await fetch(url, { credentials: 'same-origin' })
       if (r.status === 404) {
-        // fallback to legacy endpoint
-        const fallback = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes?${params.toString()}`
-        r = await fetch(!API_BASE ? `/api/v1/admin/units/classes?${params.toString()}` : fallback, { credentials: 'same-origin' })
+        r = await fetch(url, { credentials: 'same-origin' })
       }
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
@@ -92,12 +89,10 @@ export default function UnitClassesPage() {
         name: String(formValues.name || ''),
         baseUnitName: String(formValues.baseUnitName || ''),
       }
-      let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-      if (!API_BASE && r.status === 404) {
-        r = await fetch('/api/v1/admin/units/classes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-      } else if (r.status === 404) {
-        // try legacy
-        r = await fetch(`${API_BASE}/api/v1/admin/units/classes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+      let url = buildApiUrl('/api/v1/admin/units/classes')
+      let r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+      if (r.status === 404) {
+        r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
       }
       if (!r.ok) throw new Error(await r.text())
       await r.json()

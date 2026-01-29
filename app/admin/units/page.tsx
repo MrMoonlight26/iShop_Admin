@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { buildApiUrl } from '@/lib/api-config'
 
 export default function UnitsPage() {
   const [units, setUnits] = useState<any[]>([])
@@ -30,7 +31,7 @@ export default function UnitsPage() {
   const [editValueInput, setEditValueInput] = useState('')
 
   // API base and pagination
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
+
   const [pageNumber, setPageNumber] = useState(0)
   const [pageSize, setPageSize] = useState(20)
   const [totalElements, setTotalElements] = useState<number | null>(null)
@@ -65,16 +66,15 @@ export default function UnitsPage() {
   async function fetchList() {
     setIsLoading(true)
     try {
-      const params = new URLSearchParams()
-      params.set('page', String(pageNumber))
-      params.set('size', String(pageSize))
-
-      let url = `${API_BASE ? API_BASE : ''}/api/v1/admin/units/types?${params.toString()}`
-      if (!API_BASE) url = `/api/v1/admin/units/types?${params.toString()}`
-
+      const params: Record<string, string | number> = {
+        page: pageNumber,
+        size: pageSize
+      }
+      let url = buildApiUrl('/api/v1/admin/units/types', params)
       let r = await fetch(url, { credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units?${params.toString()}`, { credentials: 'same-origin' })
+        url = buildApiUrl('/api/v1/admin/units', params)
+        r = await fetch(url, { credentials: 'same-origin' })
       }
       if (!r.ok) { setUnits([]); setIsLoading(false); return }
       const raw = await r.json()
@@ -124,8 +124,12 @@ export default function UnitsPage() {
     if (parsed.raw) body.valueRaw = parsed.raw
 
     const promise = (async () => {
-      let res = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
-      if (res.status === 404) res = await fetch('/api/v1/admin/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      let url = buildApiUrl('/api/v1/admin/units/types')
+      let res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      if (res.status === 404) {
+        url = buildApiUrl('/api/v1/admin/units')
+        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      }
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     })()
@@ -187,8 +191,12 @@ export default function UnitsPage() {
     if (parsed.raw) body.valueRaw = parsed.raw
 
     const promise = (async () => {
-      let res = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
-      if (res.status === 404) res = await fetch('/api/v1/admin/units', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      let url = buildApiUrl(`/api/v1/admin/units/types/${editingId}`)
+      let res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      if (res.status === 404) {
+        url = buildApiUrl('/api/v1/admin/units')
+        res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      }
       if (!res.ok) throw new Error(await res.text())
       return res.json()
     })()
@@ -201,7 +209,8 @@ export default function UnitsPage() {
       })
       // refresh list after update to avoid local merge complexity
       try {
-        const listRes = await fetch('/api/v1/admin/units', { credentials: 'same-origin' })
+        const url = buildApiUrl('/api/v1/admin/units')
+        const listRes = await fetch(url, { credentials: 'same-origin' })
         if (listRes.ok) {
           const list = await listRes.json()
           setUnits(list)
@@ -224,9 +233,11 @@ export default function UnitsPage() {
     if (!deleteCandidate) return
     setDeleting(deleteCandidate.id)
     try {
-      let r = await fetch(`${API_BASE ? API_BASE : ''}/api/v1/admin/units/types/${deleteCandidate.id}`, { method: 'DELETE', credentials: 'same-origin' })
+      let url = buildApiUrl(`/api/v1/admin/units/types/${deleteCandidate.id}`)
+      let r = await fetch(url, { method: 'DELETE', credentials: 'same-origin' })
       if (r.status === 404) {
-        r = await fetch('/api/v1/admin/units', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
+        url = buildApiUrl('/api/v1/admin/units')
+        r = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
       }
       if (!r.ok) throw new Error(await r.text())
       toast.success('Unit deleted')

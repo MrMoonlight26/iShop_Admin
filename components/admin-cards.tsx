@@ -151,37 +151,40 @@ export function AdminCards() {
 
   return (
     <div className="px-4 lg:px-6">
-      {loading ? (
+      {loading && (
         <div className="py-12 flex justify-center">
           <LoadingSpinner text="Loading summary..." />
         </div>
-      ) : error ? (
-        <ErrorAlert error={error} onRetry={loadSummary} />
-      ) : (
-        <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-          {items.map((it) => (
-            <Card key={it.key} className="@container/card">
-              <CardHeader>
-                <CardDescription>{it.title}</CardDescription>
-                <CardTitle className="text-2xl font-semibold tabular-nums">
-                  {summary ? summary[it.key] : '—'}
-                </CardTitle>
-                <CardAction>
-                  <Badge variant="outline">Admin</Badge>
-                </CardAction>
-              </CardHeader>
-              <CardFooter className="flex items-center">
-                <div className="flex-1">
-                  <Link href={it.href} className="text-primary hover:underline">
-                    Manage {it.title}
-                  </Link>
-                  {renderExtra(it)}
-                </div>
-              </CardFooter>
-            </Card>
-          ))}
+      )}
+      {error && (
+        <div className="mb-4">
+          <ErrorAlert error={error} onRetry={loadSummary} />
         </div>
       )}
+      <div className="grid grid-cols-1 gap-4 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+        {items.map((it) => (
+          <Card key={it.key} className="@container/card">
+            <CardHeader>
+              <CardDescription>{it.title}</CardDescription>
+              <CardTitle className="text-2xl font-semibold tabular-nums">
+                {summary && !error ? summary[it.key] : '—'}
+              </CardTitle>
+              <CardAction>
+                <Badge variant="outline">Admin</Badge>
+              </CardAction>
+            </CardHeader>
+            <CardFooter className="flex items-center">
+              <div className="flex-1">
+                <Link href={it.href} className="text-primary hover:underline">
+                  Manage {it.title}
+                </Link>
+                {/* Only show extra details if summary loaded and no error */}
+                {summary && !error ? renderExtra(it) : null}
+              </div>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }

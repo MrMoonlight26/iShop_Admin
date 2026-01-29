@@ -66,9 +66,11 @@ export async function apiFetch(
   })
 }
 
-export default {
+const apiConfig = {
   getApiUrl,
   getApiBaseUrl,
   buildApiUrl,
   apiFetch,
 }
+
+export default apiConfig
