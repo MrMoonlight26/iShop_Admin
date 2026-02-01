@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import RequireAuth from '@/components/require-auth'
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
@@ -11,10 +11,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { toast } from 'sonner'
-import { buildApiUrl } from '@/lib/api-config'
+import { api } from '@/lib/apiClient'
+import { signinPath } from '@/lib/appPaths'
 
 export default function UnitTypesPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
 
 
@@ -35,11 +35,7 @@ export default function UnitTypesPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
-  }, [status, session])
-
+  // rely on server middleware + RequireAuth for auth checks
   useEffect(() => {
     fetchList()
     fetchClasses()
@@ -47,11 +43,17 @@ export default function UnitTypesPage() {
 
   async function fetchClasses() {
     try {
-      let url = buildApiUrl('/api/v1/admin/units/classes')
-      let r = await fetch(url, { credentials: 'same-origin' })
-      if (r.status === 404) r = await fetch(url, { credentials: 'same-origin' })
-      if (!r.ok) return setClasses([])
-      const data = await r.json()
+      let r: any = null
+      try {
+        r = await api.get('/admin/units/classes')
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          r = await api.get('/admin/units/classes')
+        } else {
+          throw e
+        }
+      }
+      const data = r.data
       const content = data.content ?? data
       setClasses(Array.isArray(content) ? content : [])
     } catch (err) {
@@ -67,13 +69,17 @@ export default function UnitTypesPage() {
         size: pageSize,
         ...(q ? { q } : {})
       }
-      let url = buildApiUrl('/api/v1/admin/units/types', params)
-      let r = await fetch(url, { credentials: 'same-origin' })
-      if (r.status === 404) {
-        r = await fetch(url, { credentials: 'same-origin' })
+      let r: any = null
+      try {
+        r = await api.get('/admin/units/types', { params })
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          r = await api.get('/admin/units/types', { params })
+        } else {
+          throw e
+        }
       }
-      if (!r.ok) throw new Error(await r.text())
-      const data = await r.json()
+      const data = r.data
 
       if (data && data.content) {
         setItems(data.content)
@@ -116,22 +122,31 @@ export default function UnitTypesPage() {
         conversionFactor: Number(formValues.conversionFactor ?? 1)
       }
 
-      let r: Response | undefined
+      let r: any = null
       if (formMode === 'create') {
-        let url = buildApiUrl('/api/v1/admin/units/types')
-        r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-        if (r.status === 404) r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+        try {
+          r = await api.post('/admin/units/types', payload)
+        } catch (e: any) {
+          if (e.response?.status === 404) {
+            r = await api.post('/admin/units/types', payload)
+          } else {
+            throw e
+          }
+        }
       } else {
-        let url = buildApiUrl(`/api/v1/admin/units/types/${formValues.id}`)
-        r = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
-        if (r.status === 404) {
-          url = buildApiUrl('/api/v1/admin/units/types')
-          r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: formValues.id, ...payload }) })
+        try {
+          r = await api.patch(`/admin/units/types/${formValues.id}`, payload)
+        } catch (e: any) {
+          if (e.response?.status === 404) {
+            r = await api.put('/admin/units/types', { id: formValues.id, ...payload })
+          } else {
+            throw e
+          }
         }
       }
 
-      if (!r || !r.ok) throw new Error(await (r ? r.text() : Promise.resolve('No response')))
-      await r.json()
+      if (!r) throw new Error('No response')
+      await r.data
       toast.success(formMode === 'create' ? 'Unit type created' : 'Unit type updated')
       setFormOpen(false)
       fetchList()
@@ -150,13 +165,15 @@ export default function UnitTypesPage() {
     if (!confirmDeleteId) return
     setDeleting(confirmDeleteId)
     try {
-      let url = buildApiUrl(`/api/v1/admin/units/types/${confirmDeleteId}`)
-      let r = await fetch(url, { method: 'DELETE', credentials: 'same-origin' })
-      if (r.status === 404) {
-        url = buildApiUrl('/api/v1/admin/units/types')
-        r = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: confirmDeleteId }) })
+      try {
+        await api.delete(`/admin/units/types/${confirmDeleteId}`)
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          await api.delete('/admin/units/types', { data: { id: confirmDeleteId } })
+        } else {
+          throw e
+        }
       }
-      if (!r.ok) throw new Error(await r.text())
       toast.success('Unit type deleted')
       setConfirmDeleteId(null)
       fetchList()
@@ -168,16 +185,17 @@ export default function UnitTypesPage() {
   }
 
   return (
-    <div className="p-0">
+    <RequireAuth>
+      <div className="p-0">
       <Card>
         <CardHeader>
           <CardTitle>Unit Types</CardTitle>
           <CardDescription>Manage units and their conversion factors</CardDescription>
         </CardHeader>
         <div className="p-4">
-          <div className="mb-4 flex items-center gap-2">
+            <div className="mb-4 flex items-center gap-2">
             <Input placeholder="Search by name or abbreviation" value={q} onChange={(e) => { setQ(e.target.value); setPageNumber(0) }} className="min-w-[280px]" />
-            <Select value={String(formValues.unitClassId ?? '')} onValueChange={(v) => setFormValues((s:any)=>({...s, unitClassId: v }))}>
+            <Select value={String(formValues.unitClassId ?? '')} onValueChange={(v) => setFormValues((s: any) => ({ ...s, unitClassId: v }))}>
               <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {classes.map((cl) => <SelectItem key={cl.id} value={cl.id}>{cl.name}</SelectItem>)}
@@ -245,22 +263,22 @@ export default function UnitTypesPage() {
             <form onSubmit={submitForm} className="p-4 space-y-3">
               <div>
                 <Label>Name</Label>
-                <Input value={String(formValues.name || '')} onChange={(e) => setFormValues((s)=>({...s, name: e.target.value}))} required />
+                <Input value={String(formValues.name || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, name: e.target.value }))} required />
               </div>
               <div>
                 <Label>Abbreviation</Label>
-                <Input value={String(formValues.abbreviation || '')} onChange={(e) => setFormValues((s)=>({...s, abbreviation: e.target.value}))} />
+                <Input value={String(formValues.abbreviation || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, abbreviation: e.target.value }))} />
               </div>
               <div>
                 <Label>Unit Class</Label>
-                <select value={String(formValues.unitClassId ?? '')} onChange={(e) => setFormValues((s)=>({...s, unitClassId: e.target.value}))} className="border rounded px-2 py-2 w-full">
+                <select value={String(formValues.unitClassId ?? '')} onChange={(e) => setFormValues((s: any) => ({ ...s, unitClassId: e.target.value }))} className="border rounded px-2 py-2 w-full">
                   <option value="">Select class</option>
                   {classes.map((cl)=> <option key={cl.id} value={cl.id}>{cl.name}</option>)}
                 </select>
               </div>
               <div>
                 <Label>Conversion Factor</Label>
-                <Input type="number" value={String(formValues.conversionFactor ?? 1)} onChange={(e)=> setFormValues((s)=>({...s, conversionFactor: Number(e.target.value)}))} />
+                <Input type="number" value={String(formValues.conversionFactor ?? 1)} onChange={(e)=> setFormValues((s: any)=>({...s, conversionFactor: Number(e.target.value)}))} />
               </div>
 
               <div className="flex gap-2 justify-end">
@@ -282,13 +300,13 @@ export default function UnitTypesPage() {
               <div className="text-sm">Are you sure you want to delete this unit type?</div>
               <div className="flex gap-2 justify-end mt-4">
                 <Button variant="secondary" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
-                <Button onClick={doDelete} className="bg-red-600" disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+                <Button onClick={doDelete} className="bg-red-600" disabled={!!deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
               </div>
             </div>
           </SheetContent>
         </Sheet>
-
       </Card>
     </div>
+    </RequireAuth>
   )
 }

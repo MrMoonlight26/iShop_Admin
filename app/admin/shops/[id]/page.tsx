@@ -1,10 +1,6 @@
 import Link from 'next/link'
 
-interface Props { params: { id: string } }
-
-export default async function ShopDetail(props: Props) {
-  // `params` may itself be a promise in the app router environment; await params directly before using its properties
-  const { params } = props
+export default async function ShopDetail({ params }: any) {
   const { id } = (await Promise.resolve(params)) as { id: string }
   const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
   let url = `${API_BASE || ''}/api/v1/admin/shops?id=${id}`

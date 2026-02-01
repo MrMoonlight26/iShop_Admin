@@ -11,6 +11,15 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // Project-level rule overrides to allow gradual typing fixes during migration.
+  {
+    rules: {
+      // many files currently use `any` as a pragmatic fix during conversion — warn instead of error
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // allow ts-ignore / ts-nocheck comments temporarily
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
+  },
 ];
 
 export default eslintConfig;

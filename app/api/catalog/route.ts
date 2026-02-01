@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   const total = await prisma.product.count({ where })
   const products = await prisma.product.findMany({ where, skip, take: size, orderBy: { createdAt: 'desc' } })
 
-  const content = products.map((p) => ({
+  const content = products.map((p: any) => ({
     productId: p.id,
     name: p.name,
     description: p.description,

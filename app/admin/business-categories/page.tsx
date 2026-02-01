@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
 import { formatErrorMessage } from '@/lib/api-helpers'
 import { buildApiUrl } from '@/lib/api-config'
+import { signinPath } from '@/lib/appPaths'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -53,7 +54,7 @@ export default function BusinessCategoriesPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
+    if (status === 'unauthenticated') router.push(signinPath())
     if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
   }, [status, session, router])
 

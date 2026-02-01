@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import RequireAuth from '@/components/require-auth'
 import {
   Card,
   CardHeader,
@@ -16,7 +16,8 @@ import { Input } from '@/components/ui/input'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { buildApiUrl } from '@/lib/api-config'
+import { api } from '@/lib/apiClient'
+import { signinPath } from '@/lib/appPaths'
 
 export default function UnitsPage() {
   const [units, setUnits] = useState<any[]>([])
@@ -44,20 +45,7 @@ export default function UnitsPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
 
-  const { data: session, status } = useSession()
   const router = useRouter()
-
-  useEffect(() => {
-    if (status === 'unauthenticated') return router.push('/auth/signin')
-    if (status === 'authenticated') {
-      if ((session as any)?.user?.role !== 'ADMIN') return router.push('/')
-      // When visiting the generic /admin/units route, send admins to the Unit Types page
-      router.push('/admin/units/types')
-    }
-  }, [status, session])
-
-  // Basic client-side check: show nothing while auth status unknown
-  if (status === 'loading') return null
 
   useEffect(() => {
     fetchList()
@@ -70,14 +58,15 @@ export default function UnitsPage() {
         page: pageNumber,
         size: pageSize
       }
-      let url = buildApiUrl('/api/v1/admin/units/types', params)
-      let r = await fetch(url, { credentials: 'same-origin' })
-      if (r.status === 404) {
-        url = buildApiUrl('/api/v1/admin/units', params)
-        r = await fetch(url, { credentials: 'same-origin' })
+      let r: any = null
+      try {
+        r = await api.get('/admin/units/types', { params })
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          r = await api.get('/admin/units', { params })
+        } else throw e
       }
-      if (!r.ok) { setUnits([]); setIsLoading(false); return }
-      const raw = await r.json()
+      const raw = r.data
 
       // Support paged shape
       const content = raw.content ?? raw
@@ -119,19 +108,20 @@ export default function UnitsPage() {
       return
     }
 
-    const body: any = { name, short }
+    const body: any = { name: String(name || '').trim(), short: String(short || '').trim() }
     if (parsed.number !== null) body.value = parsed.number
     if (parsed.raw) body.valueRaw = parsed.raw
 
     const promise = (async () => {
-      let url = buildApiUrl('/api/v1/admin/units/types')
-      let res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
-      if (res.status === 404) {
-        url = buildApiUrl('/api/v1/admin/units')
-        res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      let res: any = null
+      try {
+        res = await api.post('/admin/units/types', body)
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          res = await api.post('/admin/units', body)
+        } else throw e
       }
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
+      return res.data
     })()
 
     try {
@@ -191,14 +181,15 @@ export default function UnitsPage() {
     if (parsed.raw) body.valueRaw = parsed.raw
 
     const promise = (async () => {
-      let url = buildApiUrl(`/api/v1/admin/units/types/${editingId}`)
-      let res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
-      if (res.status === 404) {
-        url = buildApiUrl('/api/v1/admin/units')
-        res = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) })
+      let res: any = null
+      try {
+        res = await api.patch(`/admin/units/types/${editingId}`, body)
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          res = await api.put('/admin/units', body)
+        } else throw e
       }
-      if (!res.ok) throw new Error(await res.text())
-      return res.json()
+      return res.data
     })()
 
     try {
@@ -209,10 +200,9 @@ export default function UnitsPage() {
       })
       // refresh list after update to avoid local merge complexity
       try {
-        const url = buildApiUrl('/api/v1/admin/units')
-        const listRes = await fetch(url, { credentials: 'same-origin' })
-        if (listRes.ok) {
-          const list = await listRes.json()
+        const listRes = await api.get('/admin/units')
+        if (listRes) {
+          const list = listRes.data
           setUnits(list)
           try { window.dispatchEvent(new CustomEvent('units:updated', { detail: { action: 'update' } })) } catch (e) {}
         }
@@ -233,13 +223,13 @@ export default function UnitsPage() {
     if (!deleteCandidate) return
     setDeleting(deleteCandidate.id)
     try {
-      let url = buildApiUrl(`/api/v1/admin/units/types/${deleteCandidate.id}`)
-      let r = await fetch(url, { method: 'DELETE', credentials: 'same-origin' })
-      if (r.status === 404) {
-        url = buildApiUrl('/api/v1/admin/units')
-        r = await fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: deleteCandidate.id }) })
+      try {
+        await api.delete(`/admin/units/types/${deleteCandidate.id}`)
+      } catch (e: any) {
+        if (e.response?.status === 404) {
+          await api.delete('/admin/units', { data: { id: deleteCandidate.id } })
+        } else throw e
       }
-      if (!r.ok) throw new Error(await r.text())
       toast.success('Unit deleted')
       setUnits((units as any[]).filter((u: any) => (u as any).id !== deleteCandidate.id))
       try { window.dispatchEvent(new CustomEvent('units:updated', { detail: { action: 'delete', id: deleteCandidate.id } })) } catch (e) {}
@@ -351,7 +341,7 @@ export default function UnitsPage() {
               <div className="text-sm">Are you sure you want to delete <strong>{deleteCandidate?.name}</strong>?</div>
               <div className="flex gap-2 justify-end mt-4">
                 <Button variant="secondary" onClick={() => setDeleteCandidate(null)}>Cancel</Button>
-                <Button onClick={doDelete} className="bg-red-600" disabled={deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
+                        <Button onClick={doDelete} className="bg-red-600" disabled={!!deleting}>{deleting ? 'Deleting...' : 'Delete'}</Button>
               </div>
             </div>
           </SheetContent>

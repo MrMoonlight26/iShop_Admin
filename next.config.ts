@@ -1,7 +1,10 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next'
+
+const basePathEnv = process.env.NEXT_PUBLIC_BASE_PATH || ''
+const normalizedBasePath = basePathEnv ? `/${String(basePathEnv).replace(/^\/+|\/+$/g, '')}` : undefined
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  basePath: normalizedBasePath,
+}
 
-export default nextConfig;
+export default nextConfig

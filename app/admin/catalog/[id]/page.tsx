@@ -1,9 +1,6 @@
 import Link from 'next/link'
 
-interface Props { params: { id: string } }
-
-export default async function ProductDetail(props: Props) {
-  const { params } = props
+export default async function ProductDetail({ params }: any) {
   const { id } = (await Promise.resolve(params)) as { id: string }
   const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
   let url = `${API_BASE || ''}/api/v1/admin/catalog/${id}`

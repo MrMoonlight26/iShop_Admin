@@ -2,6 +2,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeSelector } from "./theme-selector";
 import { ModeSwitcher } from "./mode-switcher";
+import AuthControls from './auth-controls'
 
 export function SiteHeader() {
   return (
@@ -16,6 +17,7 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <ThemeSelector />
           <ModeSwitcher />
+          <AuthControls />
         </div>
       </div>
     </header>

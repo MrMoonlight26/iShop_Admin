@@ -13,7 +13,7 @@ export async function GET() {
     const totalShops = shopCount
     const shopStatusGroups = await prisma.shop.groupBy({ by: ['status'], _count: { _all: true } })
     const statusBreakdown: any = {}
-    shopStatusGroups.forEach((g) => (statusBreakdown[g.status] = g._count._all))
+    shopStatusGroups.forEach((g: any) => (statusBreakdown[g.status] = g._count._all))
     const activeShops = statusBreakdown['ACTIVE'] || 0
     const inactiveShops = totalShops - activeShops
 
@@ -25,18 +25,18 @@ export async function GET() {
 
     // Breakdown by shop (top 5)
     const byShop = await prisma.order.groupBy({ by: ['shopId'], _count: { _all: true }, orderBy: { _count: { _all: 'desc' } }, take: 5 })
-    const shopDetails = await Promise.all(byShop.map(async (g) => {
+    const shopDetails = await Promise.all(byShop.map(async (g: any) => {
       const shop = await prisma.shop.findUnique({ where: { id: g.shopId } })
       return { shopId: g.shopId, shopName: shop?.name || 'Unknown', count: g._count._all }
     }))
 
     // Breakdown by pinCode (top 5)
     const byPin = await prisma.order.groupBy({ by: ['pinCode'], _count: { _all: true }, orderBy: { _count: { _all: 'desc' } }, take: 5 })
-    const pinDetails = byPin.map((g) => ({ pinCode: g.pinCode || 'Unknown', count: g._count._all }))
+    const pinDetails = byPin.map((g: any) => ({ pinCode: g.pinCode || 'Unknown', count: g._count._all }))
 
     // Breakdown by area (top 5)
     const byArea = await prisma.order.groupBy({ by: ['area'], _count: { _all: true }, orderBy: { _count: { _all: 'desc' } }, take: 5 })
-    const areaDetails = byArea.map((g) => ({ area: g.area || 'Unknown', count: g._count._all }))
+    const areaDetails = byArea.map((g: any) => ({ area: g.area || 'Unknown', count: g._count._all }))
 
     // Time windows for orders (7, 30, 90 days)
     const now = new Date()
@@ -49,7 +49,7 @@ export async function GET() {
 
     const totals: any = {}
     for (const k of Object.keys(windows)) {
-      const where: any = { createdAt: { gte: windows[k].since } }
+      const where: any = { createdAt: { gte: (windows as any)[k].since } }
       const count = await prisma.order.count({ where })
       const sum = await prisma.order.aggregate({ _sum: { total: true }, where })
       totals[k] = { count, totalValue: sum._sum.total || 0 }
@@ -58,13 +58,13 @@ export async function GET() {
     // Order counts by status (overall and per window)
     const orderStatusGroups = await prisma.order.groupBy({ by: ['status'], _count: { _all: true } })
     const byStatus: any = {}
-    orderStatusGroups.forEach((g) => (byStatus[g.status] = g._count._all))
+    orderStatusGroups.forEach((g: any) => (byStatus[g.status] = g._count._all))
 
     const byStatusWindow: any = {}
     for (const k of Object.keys(windows)) {
-      const groups = await prisma.order.groupBy({ by: ['status'], where: { createdAt: { gte: windows[k].since } }, _count: { _all: true } })
+      const groups = await prisma.order.groupBy({ by: ['status'], where: { createdAt: { gte: (windows as any)[k].since } }, _count: { _all: true } })
       byStatusWindow[k] = {}
-      groups.forEach((g) => (byStatusWindow[k][g.status] = g._count._all))
+      groups.forEach((g: any) => (byStatusWindow[k][g.status] = g._count._all))
     }
 
     return NextResponse.json({ productCount, unitCount, shopCount, vendorCount, orderCount, byShop: shopDetails, byPin: pinDetails, byArea: areaDetails, totals, byStatus, byStatusWindow, totalShops, activeShops, inactiveShops, onlineEnabledShops, offlineShops, acceptingOrdersShops, notAcceptingOrdersShops, statusBreakdown })

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { ActiveThemeProvider } from "@/components/active-theme";
 import NextSessionProvider from '@/components/providers/session-provider'
+import { AuthProvider } from '@/components/providers/auth-provider'
 
 export const metadata: Metadata = {
   title: "The CornerShop - Admin Dashboard",
@@ -43,7 +44,9 @@ export default async function RootLayout({
           <ActiveThemeProvider initialTheme={activeThemeValue}>
             {/* Session provider (wrap client components using useSession) */}
             {/* Use NEXT_PUBLIC_MOCK_ADMIN=true in .env to mock an ADMIN session during dev */}
-            <NextSessionProvider>{children}</NextSessionProvider>
+            <NextSessionProvider>
+              <AuthProvider>{children}</AuthProvider>
+            </NextSessionProvider>
           </ActiveThemeProvider>
         </ThemeProvider>
       </body>

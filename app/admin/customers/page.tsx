@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import RequireAuth from '@/components/require-auth'
 import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
 import { formatErrorMessage } from '@/lib/api-helpers'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { buildApiUrl } from '@/lib/api-config'
+import { api } from '@/lib/apiClient'
+import { signinPath } from '@/lib/appPaths'
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([])
@@ -27,34 +28,20 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const { data: session, status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
     fetchList()
   }, [page, size, query])
 
-  useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
-  }, [status, session, router])
-
-  if (status === 'loading') return null
+  // rely on server middleware + RequireAuth for auth checks
 
   async function fetchList() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch(
-        buildApiUrl('/api/v1/admin/customers', {
-          page,
-          size,
-          ...(query && { q: query })
-        }),
-        { credentials: 'same-origin' }
-      )
-      if (!response.ok) throw new Error(`Failed to load customers: ${response.status}`)
-      const res = await response.json()
+      const response = await api.get('/admin/customers', { params: { page, size, ...(query && { q: query }) } })
+      const res = response.data
       setCustomers(res.data || res.content || [])
       setTotal(res.total || res.totalElements || 0)
     } catch (err) {
@@ -69,14 +56,8 @@ export default function CustomersPage() {
     if (!confirm('Change status?')) return
     try {
       setUpdatingId(id)
-      const response = await fetch(buildApiUrl('/api/v1/admin/customers'), { 
-        method: 'PUT', 
-        headers: { 'Content-Type': 'application/json' }, 
-        credentials: 'same-origin', 
-        body: JSON.stringify({ id, status: newStatus }) 
-      })
-      if (!response.ok) throw new Error(await response.text())
-      const updated = await response.json()
+      const r = await api.put('/admin/customers', { id, status: newStatus })
+      const updated = r.data
       setCustomers((s) => s.map((c: any) => c.id === id ? updated : c))
     } catch (e) {
       setError(formatErrorMessage(e))
@@ -119,7 +100,8 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <RequireAuth>
+      <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
         <p className="text-muted-foreground mt-1">Manage all customers in your system</p>
@@ -184,5 +166,6 @@ export default function CustomersPage() {
         </>
       )}
     </div>
+    </RequireAuth>
   )
 }

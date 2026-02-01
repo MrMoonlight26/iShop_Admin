@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-config";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -16,6 +17,8 @@ export default function PaymentConfigsPage() {
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [processingItem, setProcessingItem] = useState<string | null>(null);
 
   const [showNew, setShowNew] = useState(false);
   const [newConfig, setNewConfig] = useState<any>({
@@ -50,6 +53,7 @@ export default function PaymentConfigsPage() {
       setConfigs(data);
     } catch (e) {
       setError('Failed to load payment configs.');
+      toast.error('Failed to load payment configs.');
     } finally {
       setLoading(false);
     }
@@ -57,13 +61,18 @@ export default function PaymentConfigsPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    setProcessing(true);
     try {
       const res = await apiFetch('/api/v1/admin/payment-configs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig),
       });
-      if (!res.ok) throw new Error('create-failed');
+      if (!res.ok) {
+        let msg = 'create-failed';
+        try { const body = await res.json(); msg = body?.message || res.statusText; } catch (e) {}
+        throw new Error(msg);
+      }
       setShowNew(false);
       setNewConfig({
         type: 'DIGITAL_PREPAID',
@@ -74,25 +83,40 @@ export default function PaymentConfigsPage() {
         surchargePercentage: 0,
         inputTemplate: '',
       });
+      toast.success('Payment config created');
       await reload();
-    } catch (err) {
-      setError('Failed to create payment config.');
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to create payment config.';
+      setError(msg);
+      toast.error('Create failed: ' + msg);
+    } finally {
+      setProcessing(false);
     }
   }
 
   async function handleSaveEdit(type: string) {
+    setProcessingItem(type);
     try {
       const res = await apiFetch(`/api/v1/admin/payment-configs/${type}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editValues),
       });
-      if (!res.ok) throw new Error('update-failed');
+      if (!res.ok) {
+        let msg = 'update-failed';
+        try { const body = await res.json(); msg = body?.message || res.statusText; } catch (e) {}
+        throw new Error(msg);
+      }
       setEditing(null);
       setEditValues({});
+      toast.success('Payment config updated');
       await reload();
-    } catch (err) {
-      setError('Failed to update payment config.');
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to update payment config.';
+      setError(msg);
+      toast.error('Update failed: ' + msg);
+    } finally {
+      setProcessingItem(null);
     }
   }
 
@@ -198,7 +222,7 @@ export default function PaymentConfigsPage() {
                   {editing === c.type ? (
                     <input type="checkbox" checked={editValues.isEnabled ?? c.isEnabled} onChange={(e) => setEditValues({ ...editValues, isEnabled: e.target.checked })} />
                   ) : (
-                    c.isEnabled ? "Yes" : "No"
+                    <span className={c.isEnabled ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>{c.isEnabled ? 'Enabled' : 'Disabled'}</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -211,11 +235,13 @@ export default function PaymentConfigsPage() {
                 <TableCell>
                   {editing === c.type ? (
                     <>
-                      <Button variant="default" size="sm" className="mr-2" onClick={() => handleSaveEdit(c.type)}>Save</Button>
-                      <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setEditValues({}); }}>Cancel</Button>
+                      <Button variant="default" size="sm" className="mr-2" onClick={() => handleSaveEdit(c.type)} disabled={processing || processingItem === c.type}>
+                        {processingItem === c.type ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setEditValues({}); }} disabled={processing || processingItem === c.type}>Cancel</Button>
                     </>
                   ) : (
-                  <Button size="sm" onClick={() => { setEditing(c.type); setEditValues(c); }}>Edit</Button>
+                  <Button size="sm" onClick={() => { setEditing(c.type); setEditValues(c); }} disabled={processing}>Edit</Button>
                   )}
                 </TableCell>
               </TableRow>

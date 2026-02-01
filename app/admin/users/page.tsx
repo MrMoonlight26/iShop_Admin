@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import RequireAuth from '@/components/require-auth'
 import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
 import { formatErrorMessage } from '@/lib/api-helpers'
 import { Button } from '@/components/ui/button'
@@ -17,14 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { buildApiUrl } from '@/lib/api-config'
+import { signinPath } from '@/lib/appPaths'
 
 export default function UsersPage() {
-  const [users, setUsers] = useState([])
+  const [users, setUsers] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const { data: session, status } = useSession()
   const router = useRouter()
 
   const [page, setPage] = useState(0)
@@ -36,12 +36,7 @@ export default function UsersPage() {
     fetchList()
   }, [page, size, query, statusFilter])
 
-  useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
-  }, [status, session, router])
-
-  if (status === 'loading') return null
+  // rely on server-side middleware + RequireAuth for auth checks
 
   async function fetchList() {
     try {
@@ -134,7 +129,8 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <RequireAuth>
+      <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Vendors Management</h1>
         <p className="text-muted-foreground mt-1">Manage all vendors in your system</p>
@@ -225,6 +221,7 @@ export default function UsersPage() {
           {renderPagination()}
         </>
       )}
-    </div>
+      </div>
+    </RequireAuth>
   )
 }

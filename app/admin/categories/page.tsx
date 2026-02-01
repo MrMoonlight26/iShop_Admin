@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFo
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { buildApiUrl } from '@/lib/api-config'
+import { signinPath } from '@/lib/appPaths'
 
 export default function CategoriesPage() {
   const [items, setItems] = useState<any[]>([])
@@ -59,9 +60,9 @@ export default function CategoriesPage() {
 
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
+    if (status === 'unauthenticated') router.push(signinPath())
     if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
-  }, [status, session])
+  }, [status, session, router])
 
   if (status === 'loading') return null
 
@@ -482,33 +483,33 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label>Name</Label>
-                <Input value={String(formValues.name || '')} onChange={(e) => setFormValues((s) => ({ ...s, name: e.target.value }))} required />
+                <Input value={String(formValues.name || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, name: e.target.value }))} required />
               </div>
               <div>
                 <Label>Code</Label>
-                <Input value={String(formValues.code || '')} onChange={(e) => setFormValues((s) => ({ ...s, code: e.target.value }))} />
+                <Input value={String(formValues.code || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, code: e.target.value }))} />
               </div>
               <div>
                 <Label>Short Code</Label>
-                <Input value={String(formValues.shortCode || '')} onChange={(e) => setFormValues((s) => ({ ...s, shortCode: e.target.value }))} />
+                <Input value={String(formValues.shortCode || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, shortCode: e.target.value }))} />
               </div>
               <div>
                 <Label>Slug</Label>
-                <Input value={String(formValues.slug || '')} onChange={(e) => setFormValues((s) => ({ ...s, slug: e.target.value }))} />
+                <Input value={String(formValues.slug || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, slug: e.target.value }))} />
               </div>
               <div className="col-span-2">
                 <Label>Description</Label>
-                <Input value={String(formValues.description || '')} onChange={(e) => setFormValues((s) => ({ ...s, description: e.target.value }))} />
+                <Input value={String(formValues.description || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, description: e.target.value }))} />
               </div>
               <div>
                 <Label>Parent</Label>
-                <select className="border-input rounded-md px-3 py-2 text-foreground min-w-[160px]" value={formValues.parentId ?? '__top__'} onChange={(e) => setFormValues((s) => ({ ...s, parentId: e.target.value === '__top__' ? null : (e.target.value || null) }))}>
+                <select className="border-input rounded-md px-3 py-2 text-foreground min-w-[160px]" value={formValues.parentId ?? '__top__'} onChange={(e) => setFormValues((s: any) => ({ ...s, parentId: e.target.value === '__top__' ? null : (e.target.value || null) }))}>
                   <option value="__top__">Top-level</option>
                   {items.filter((x) => x.id !== formValues.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
                 </select>
               </div>
               <div className="flex items-center gap-2">
-                <Checkbox checked={!!formValues.active} onCheckedChange={(v) => setFormValues((s) => ({ ...s, active: !!v }))} />
+                <Checkbox checked={!!formValues.active} onCheckedChange={(v) => setFormValues((s: any) => ({ ...s, active: !!v }))} />
                 <Label>Active</Label>
               </div>
             </div>

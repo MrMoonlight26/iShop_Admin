@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatErrorMessage } from '@/lib/api-helpers'
+import { api } from '@/lib/apiClient'
 
 export function AdminCards() {
   const [summary, setSummary] = useState<any>(null)
@@ -23,12 +24,8 @@ export function AdminCards() {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch('/api/v1/admin/summary', { credentials: 'same-origin' })
-      if (!response.ok) {
-        throw new Error(`Failed to load summary: ${response.status}`)
-      }
-      const data = await response.json()
-      setSummary(data)
+      const response = await api.get('/admin/summary')
+      setSummary(response.data)
     } catch (err) {
       setError(formatErrorMessage(err))
       setSummary(null)
@@ -51,11 +48,8 @@ export function AdminCards() {
 
   async function exportOrders() {
     try {
-      const response = await fetch('/api/v1/admin/orders/export', { credentials: 'same-origin' })
-      if (!response.ok) {
-        throw new Error('Export failed')
-      }
-      const blob = await response.blob()
+      const response = await api.get('/admin/orders/export', { responseType: 'blob' })
+      const blob = new Blob([response.data])
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

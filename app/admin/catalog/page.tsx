@@ -17,7 +17,8 @@ import { toast } from 'sonner'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { buildApiUrl } from '@/lib/api-config'
+import { api } from '@/lib/apiClient'
+import { signinPath } from '@/lib/appPaths'
 export default function CatalogPage() {
   const [products, setProducts] = useState<any[]>([])
 
@@ -59,9 +60,9 @@ export default function CatalogPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
+    if (status === 'unauthenticated') router.push(signinPath())
     if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
-  }, [status, session])
+  }, [status, session, router])
 
   // Basic client-side check: show nothing while auth status unknown
   if (status === 'loading') return null
@@ -107,12 +108,9 @@ export default function CatalogPage() {
       size: pageSize,
       ...(query ? { q: query } : {})
     }
-    const url = buildApiUrl('/api/v1/admin/catalog', params)
-
     try {
-      const r = await fetch(url, { credentials: 'same-origin' })
-      if (!r.ok) { setProducts([]); setIsLoading(false); return }
-      const data = await r.json()
+      const r = await api.get('/admin/catalog', { params })
+      const data = r.data
       const items = Array.isArray(data.content) ? data.content : []
       setProducts(items)
       setTotalElements(typeof data.totalElements === 'number' ? data.totalElements : (Array.isArray(items) ? items.length : null))
@@ -129,15 +127,15 @@ export default function CatalogPage() {
   async function fetchUnits() {
     setIsUnitsLoading(true)
     try {
-      const url = buildApiUrl('/api/v1/admin/units')
-      const r = await fetch(url, { credentials: 'same-origin' })
-      if (!r.ok) {
+      try {
+        const r = await api.get('/admin/units')
+        const data = r.data
+        setUnits(data)
+        if (data && data.length && !createUnitTypeId) setCreateUnitTypeId(data[0].id)
+      } catch (e) {
         setUnits([])
         return
       }
-      const data = await r.json()
-      setUnits(data)
-      if (data && data.length && !createUnitTypeId) setCreateUnitTypeId(data[0].id)
     } catch (e) {
       console.error('Failed to load units', e)
       setUnits([])
@@ -149,10 +147,8 @@ export default function CatalogPage() {
   async function fetchCategories() {
     setIsCategoriesLoading(true)
     try {
-      const url = buildApiUrl('/api/v1/admin/categories')
-      const r = await fetch(url, { credentials: 'same-origin' })
-      if (!r.ok) { setCategories([]); return }
-      const data = await r.json()
+      const r = await api.get('/admin/categories')
+      const data = r.data
       // Normalize to array: handle paged (data.content) or array
       let arr: any[] = []
       if (Array.isArray(data)) {
@@ -173,7 +169,7 @@ export default function CatalogPage() {
   async function createProduct(e?: React.FormEvent) {
     if (e) e.preventDefault()
     setIsCreating(true)
-    const url = buildApiUrl('/api/v1/admin/catalog')
+      // create product via proxy-backed API
 
     const payload: any = {
       name: createName,
@@ -190,10 +186,7 @@ export default function CatalogPage() {
       active: createActive
     }
 
-    const promise = fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) }).then(async (r) => {
-      if (!r.ok) throw new Error(await r.text())
-      return r.json()
-    })
+    const promise = api.post('/admin/catalog/products', payload).then((r) => r.data)
 
     try {
       const p = await toast.promise(promise, {
@@ -248,11 +241,7 @@ export default function CatalogPage() {
     e.preventDefault()
     if (!editingId) return
     setSavingId(editingId)
-    const url = buildApiUrl('/api/v1/admin/catalog')
-    const promise = fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: editingId, name: editName, description: editDesc, sku: editSku, defaultUnitId: editDefaultUnitId }) }).then(async (r) => {
-      if (!r.ok) throw new Error(await r.text())
-      return r.json()
-    })
+      const promise = api.put('/admin/catalog', { id: editingId, name: editName, description: editDesc, sku: editSku, defaultUnitId: editDefaultUnitId }).then((r) => r.data)
 
     try {
       await toast.promise(promise, {
@@ -273,11 +262,7 @@ export default function CatalogPage() {
   async function deleteProduct(id: string) {
     if (!confirm('Delete this product?')) return
     setDeletingId(id)
-    const url = buildApiUrl('/api/v1/admin/catalog')
-    const promise = fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id }) }).then(async (r) => {
-      if (!r.ok) throw new Error(await r.text())
-      return true
-    })
+      const promise = api.delete('/admin/catalog', { data: { id } }).then(() => true)
 
     try {
       await toast.promise(promise, {

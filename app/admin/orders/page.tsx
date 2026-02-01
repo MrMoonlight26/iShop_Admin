@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
 import { formatErrorMessage } from '@/lib/api-helpers'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import RequireAuth from '@/components/require-auth'
 import { Card } from '@/components/ui/card'
 import {
   Select,
@@ -16,38 +16,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { buildApiUrl } from '@/lib/api-config'
+import { Input } from '@/components/ui/input'
+import { api } from '@/lib/apiClient'
+import { signinPath } from '@/lib/appPaths'
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [filterShop, setFilterShop] = useState<string | null>(null)
-  const [filterPin, setFilterPin] = useState('')
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   const [windowFilter, setWindowFilter] = useState<'all'|'7'|'30'|'90'>('all')
-  const [page, setPage] = useState(0) // 0-based pagination
-  const [limit, setLimit] = useState(20)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [shops, setShops] = useState<any[]>([])
+  const [filterPin, setFilterPin] = useState<string | null>(null)
+  const [page, setPage] = useState<number>(0)
+  const [limit, setLimit] = useState<number>(20)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState<number>(0)
+  // rely on server middleware + RequireAuth for auth checks
+  
 
   const { data: session, status } = useSession()
   const router = useRouter()
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
+    if (status === 'unauthenticated') router.push(signinPath())
     if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
   }, [status, session, router])
 
   if (status === 'loading') return null
 
   useEffect(() => {
-    const url = buildApiUrl('/api/v1/admin/shops', { limit: 100 })
-    fetch(url, { credentials: 'same-origin' }).then(async (r) => {
-      if (!r.ok) return setShops([])
-      const data = await r.json()
+    api.get('/admin/shops', { params: { limit: 100 } }).then((r) => {
+      const data = r.data
       setShops(data.data || data)
-    })
+    }).catch(() => setShops([]))
   }, [])
 
   useEffect(() => {
@@ -70,10 +72,8 @@ export default function OrdersPage() {
       params['page'] = String(page)
       params['limit'] = String(limit)
 
-      const url = buildApiUrl('/api/v1/admin/orders', params)
-      const r = await fetch(url, { credentials: 'same-origin' })
-      if (!r.ok) throw new Error(`Failed to load orders: ${r.status}`)
-      const data = await r.json()
+      const r = await api.get('/admin/orders', { params })
+      const data = r.data
       setOrders(data.data)
       setTotal(data.total)
     } catch (err) {
@@ -138,7 +138,7 @@ export default function OrdersPage() {
         </Select>
         <Input
           placeholder="Filter by pin code"
-          value={filterPin}
+          value={filterPin ?? ''}
           onChange={(e) => setFilterPin(e.target.value)}
           className="max-w-xs"
         />
