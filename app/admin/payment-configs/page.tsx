@@ -1,6 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-config";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableHeader,
@@ -15,8 +17,20 @@ export default function PaymentConfigsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [showNew, setShowNew] = useState(false);
+  const [newConfig, setNewConfig] = useState<any>({
+    type: "DIGITAL_PREPAID",
+    displayName: "",
+    description: "",
+    iconUrl: "",
+    isEnabled: true,
+    surchargePercentage: 0,
+    inputTemplate: "",
+  });
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<any>({});
   useEffect(() => {
-    apiFetch('/api/v1/admin/payment-configs')
+    apiFetch('/api/v1/admin/payments/providers/all')
       .then((res) => {
         if (!res.ok) throw new Error('network')
         return res.json()
@@ -26,11 +40,125 @@ export default function PaymentConfigsPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  async function reload() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await apiFetch('/api/v1/admin/payments/providers/all');
+      if (!res.ok) throw new Error('network');
+      const data = await res.json();
+      setConfigs(data);
+    } catch (e) {
+      setError('Failed to load payment configs.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      const res = await apiFetch('/api/v1/admin/payment-configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newConfig),
+      });
+      if (!res.ok) throw new Error('create-failed');
+      setShowNew(false);
+      setNewConfig({
+        type: 'DIGITAL_PREPAID',
+        displayName: '',
+        description: '',
+        iconUrl: '',
+        isEnabled: true,
+        surchargePercentage: 0,
+        inputTemplate: '',
+      });
+      await reload();
+    } catch (err) {
+      setError('Failed to create payment config.');
+    }
+  }
+
+  async function handleSaveEdit(type: string) {
+    try {
+      const res = await apiFetch(`/api/v1/admin/payment-configs/${type}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editValues),
+      });
+      if (!res.ok) throw new Error('update-failed');
+      setEditing(null);
+      setEditValues({});
+      await reload();
+    } catch (err) {
+      setError('Failed to update payment config.');
+    }
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Payment Configurations</h1>
       {loading && <p>Loading...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      <div className="flex items-center justify-between mb-4">
+        <div />
+        <div>
+          <Button className="mr-2" onClick={() => setShowNew((v) => !v)}>
+            {showNew ? "Cancel" : "New Payment Config"}
+          </Button>
+        </div>
+      </div>
+
+      {showNew && (
+        <form onSubmit={handleCreate} className="mb-4 p-4 border rounded">
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex flex-col">
+              <span>Type</span>
+              <select
+                value={newConfig.type}
+                onChange={(e) => setNewConfig({ ...newConfig, type: e.target.value })}
+                className="mt-1"
+              >
+                <option>DIGITAL_PREPAID</option>
+                <option>UPI</option>
+                <option>CARD</option>
+                <option>NET_BANKING</option>
+                <option>CASH_ON_COLLECTION</option>
+                <option>CASH_ON_DELIVERY</option>
+                <option>CASH_ON_PICKUP</option>
+              </select>
+            </label>
+            <label className="flex flex-col">
+              <span>Display Name</span>
+              <Input className="mt-1" value={newConfig.displayName} onChange={(e: any) => setNewConfig({ ...newConfig, displayName: e.target.value })} />
+            </label>
+            <label className="flex flex-col">
+              <span>Description</span>
+              <Input className="mt-1" value={newConfig.description} onChange={(e: any) => setNewConfig({ ...newConfig, description: e.target.value })} />
+            </label>
+            <label className="flex flex-col">
+              <span>Icon URL</span>
+              <Input className="mt-1" value={newConfig.iconUrl} onChange={(e: any) => setNewConfig({ ...newConfig, iconUrl: e.target.value })} />
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={newConfig.isEnabled} onChange={(e) => setNewConfig({ ...newConfig, isEnabled: e.target.checked })} />
+              <span>Enabled</span>
+            </label>
+            <label className="flex flex-col">
+              <span>Surcharge %</span>
+              <Input type="number" className="mt-1" value={String(newConfig.surchargePercentage)} onChange={(e: any) => setNewConfig({ ...newConfig, surchargePercentage: Number(e.target.value) })} />
+            </label>
+            <label className="flex flex-col col-span-2">
+              <span>Input Template</span>
+              <Input className="mt-1" value={newConfig.inputTemplate} onChange={(e: any) => setNewConfig({ ...newConfig, inputTemplate: e.target.value })} />
+            </label>
+          </div>
+          <div className="mt-3">
+            <Button type="submit">Create</Button>
+          </div>
+        </form>
+      )}
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -42,15 +170,57 @@ export default function PaymentConfigsPage() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {configs.map((c: any) => (
-            <TableRow key={c.type}>
-              <TableCell>{c.type}</TableCell>
-              <TableCell>{c.displayName}</TableCell>
-              <TableCell>{c.description}</TableCell>
-              <TableCell>{c.isEnabled ? "Yes" : "No"}</TableCell>
-              <TableCell>{c.surchargePercentage}</TableCell>
-            </TableRow>
-          ))}
+          {configs.map((c: any) => {
+            return (
+              <TableRow key={c.type}>
+                <TableCell>
+                  {editing === c.type ? (
+                    <input value={editValues.type ?? c.type} disabled className="w-36" />
+                  ) : (
+                    c.type
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editing === c.type ? (
+                    <input value={editValues.displayName ?? c.displayName} onChange={(e) => setEditValues({ ...editValues, displayName: e.target.value })} />
+                  ) : (
+                    c.displayName
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editing === c.type ? (
+                    <input value={editValues.description ?? c.description} onChange={(e) => setEditValues({ ...editValues, description: e.target.value })} />
+                  ) : (
+                    c.description
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editing === c.type ? (
+                    <input type="checkbox" checked={editValues.isEnabled ?? c.isEnabled} onChange={(e) => setEditValues({ ...editValues, isEnabled: e.target.checked })} />
+                  ) : (
+                    c.isEnabled ? "Yes" : "No"
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editing === c.type ? (
+                    <input type="number" value={editValues.surchargePercentage ?? c.surchargePercentage} onChange={(e) => setEditValues({ ...editValues, surchargePercentage: Number(e.target.value) })} className="w-20" />
+                  ) : (
+                    c.surchargePercentage
+                  )}
+                </TableCell>
+                <TableCell>
+                  {editing === c.type ? (
+                    <>
+                      <Button variant="default" size="sm" className="mr-2" onClick={() => handleSaveEdit(c.type)}>Save</Button>
+                      <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setEditValues({}); }}>Cancel</Button>
+                    </>
+                  ) : (
+                  <Button size="sm" onClick={() => { setEditing(c.type); setEditValues(c); }}>Edit</Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
       {/* Add/Edit UI can be added here */}
