@@ -132,11 +132,14 @@ export const authService = {
     }
   },
 
-  clear() {
+  async clear() {
     accessToken = null
     if (typeof window !== 'undefined') {
-      // Try to clear HttpOnly cookies via server route, then remove any non-HttpOnly traces
-      try { fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {}) } catch (e) {}
+      // Try to clear HttpOnly cookies via server route and wait for it to complete
+      try {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
+      } catch (e) {}
+      // Remove any client-visible traces as well
       deleteCookie(ACCESS_COOKIE)
       deleteCookie(REFRESH_COOKIE)
     }

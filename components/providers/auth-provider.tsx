@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { authService, type LoginRequest, type LoginResponse } from '../../lib/frontendAuth'
 
@@ -44,8 +45,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return res
   }
 
-  const logout = () => {
-    authService.clear()
+  const logout = async () => {
+    try {
+      await authService.clear()
+    } catch (e) {}
+    try {
+      await signOut({ redirect: false })
+    } catch (e) {}
     setIsAuthenticated(false)
     const { signinPath } = require('../../lib/appPaths')
     router.push(signinPath())

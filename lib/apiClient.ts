@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios'
-import { authService } from './frontendAuth'
+import { authService } from '@/lib/frontendAuth'
 
 // Proxy all API calls through the internal proxy so HttpOnly cookies are used server-side
 const api: AxiosInstance = axios.create({ baseURL: '/api/proxy', withCredentials: true })
