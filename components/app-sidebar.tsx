@@ -56,6 +56,10 @@ const data = {
           url: "/admin/units",
         },
         {
+          title: "Unit Classes",
+          url: "/admin/units/classes",
+        },
+        {
           title: "Categories",
           url: "/admin/categories",
         },
@@ -83,6 +87,16 @@ const data = {
           url: "#",
         },
       ],
+    },
+    {
+      title: "Payment Config",
+      url: "/admin/payment-configs",
+      icon: IconSettings,
+    },
+    {
+      title: "Notification Templates",
+      url: "/admin/templates",
+      icon: IconSettings,
     },
     {
       title: "Analytics",

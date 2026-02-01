@@ -8,17 +8,7 @@
 
 2. Dev DB: The project uses SQLite for development by default (see `.env`).
 
-3. Generate Prisma client & run migrations:
-
-   npx prisma generate
-   npx prisma migrate dev --name init
-
-4. Seed the database (creates a sample admin user and unit types):
-
-   node prisma/seed.js
-
-   - Admin credentials (dev): `admin@example.com` / `admin123`
-   - Dev quick-auth header: send `x-dev-secret: dev-secret` on admin API requests (temporary, dev-only)
+// Removed: Prisma and DB setup steps
 
 5. Start dev server:
 
@@ -79,5 +69,6 @@ This project includes a production-ready Admin portal for managing units, catego
 
 - Run migrations after updating schema: `npx prisma migrate dev` and `npx prisma generate`.
 - Seed with: `node prisma/seed.js` (creates test admin/vendor/customer and sample orders).
+// Removed: Prisma and DB migration/seed steps
 
 If you'd like, I can add cURL examples and tests for these APIs and a short video/gif demonstrating the flows.

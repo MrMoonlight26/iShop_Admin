@@ -55,13 +55,25 @@ export function buildApiUrl(
  */
 export async function apiFetch(
   endpoint: string,
-  options: RequestInit & { params?: Record<string, string | number | boolean> } = {}
+  options: RequestInit & { params?: Record<string, string | number | boolean>; headers?: Record<string, string> } = {}
 ): Promise<Response> {
-  const { params, ...fetchOptions } = options
+  const { params, headers, ...fetchOptions } = options
   const url = buildApiUrl(endpoint, params)
-  
+
+  // Add dev-only auth header when talking to localhost backend
+  const defaultHeaders: Record<string, string> = {}
+  try {
+    const base = getApiBaseUrl()
+    if (base.includes("localhost") && process.env.NODE_ENV === "development") {
+      defaultHeaders["x-dev-secret"] = "dev-secret"
+    }
+  } catch (e) {
+    // ignore
+  }
+
   return fetch(url, {
     ...fetchOptions,
+    headers: { ...defaultHeaders, ...(headers || {}) },
     credentials: 'same-origin',
   })
 }

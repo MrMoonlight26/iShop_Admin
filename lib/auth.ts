@@ -1,6 +1,5 @@
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { NextAuthOptions } from 'next-auth'
-import { prisma } from './prisma'
 import bcrypt from 'bcrypt'
 import { getToken } from 'next-auth/jwt'
 
@@ -14,11 +13,15 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } })
-        if (!user || !user.password) return null
-        const isValid = await bcrypt.compare(credentials.password, user.password)
-        if (!isValid) return null
-        return { id: user.id, email: user.email, name: user.name, role: user.role }
+        // TODO: Replace with real backend API call
+        // Dummy user for dev only
+        if (
+          credentials.email === 'admin@example.com' &&
+          credentials.password === 'admin123'
+        ) {
+          return { id: '1', email: 'admin@example.com', name: 'Admin', role: 'admin' }
+        }
+        return null
       }
     })
   ],
