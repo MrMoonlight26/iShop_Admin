@@ -64,11 +64,11 @@ export default function CategoriesPage() {
     if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
   }, [status, session, router])
 
-  if (status === 'loading') return null
-
   useEffect(() => {
-    fetchList()
-  }, [])
+    if (status === 'authenticated') fetchList()
+  }, [status])
+
+  if (status === 'loading') return null
 
   async function fetchList() {
     setIsLoading(true)

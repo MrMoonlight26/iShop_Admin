@@ -13,6 +13,9 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   return await proxy(req)
 }
+export async function PATCH(req: Request) {
+  return await proxy(req)
+}
 
 async function proxy(req: Request) {
   try {

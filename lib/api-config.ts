@@ -3,7 +3,7 @@
  * Handles dev/prod environment-based API URLs
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? ''
 
 /**
  * Get the full API URL for a given endpoint
@@ -58,13 +58,29 @@ export async function apiFetch(
   options: RequestInit & { params?: Record<string, string | number | boolean>; headers?: Record<string, string> } = {}
 ): Promise<Response> {
   const { params, headers, ...fetchOptions } = options
-  const url = buildApiUrl(endpoint, params)
+  // If calling an /api/v1 backend endpoint from the client, route through
+  // the internal server proxy (`/api/proxy`) so HttpOnly cookies can be
+  // attached server-side. Otherwise build a normal URL.
+  let url: string
+  if (typeof window !== 'undefined' && endpoint.startsWith('/api/v1')) {
+    // proxy path expects the suffix after /api/v1
+    const suffix = endpoint.replace(/^\/api\/v1/, '')
+    url = `/api/proxy${suffix}`
+    if (params && Object.keys(params).length) {
+      const sp = new URLSearchParams()
+      Object.entries(params).forEach(([k, v]) => sp.append(k, String(v)))
+      url += `?${sp.toString()}`
+    }
+  } else {
+    url = buildApiUrl(endpoint, params)
+  }
 
   // Add dev-only auth header when talking to localhost backend
   const defaultHeaders: Record<string, string> = {}
   try {
     const base = getApiBaseUrl()
-    if (base.includes("localhost") && process.env.NODE_ENV === "development") {
+    const runningOnLocalhost = base.includes("localhost") || (typeof window !== 'undefined' && window.location?.hostname?.includes('localhost'))
+    if (runningOnLocalhost && process.env.NODE_ENV === "development") {
       defaultHeaders["x-dev-secret"] = "dev-secret"
     }
   } catch (e) {
@@ -74,7 +90,9 @@ export async function apiFetch(
   return fetch(url, {
     ...fetchOptions,
     headers: { ...defaultHeaders, ...(headers || {}) },
-    credentials: 'same-origin',
+    // include cookies for same-origin requests to allow HttpOnly cookies
+    // to be sent to our Next.js server (proxy/routes/auth) when needed
+    credentials: 'include',
   })
 }
 

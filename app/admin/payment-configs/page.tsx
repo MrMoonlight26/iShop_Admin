@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api-config";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
   Table,
   TableHeader,
@@ -33,7 +34,7 @@ export default function PaymentConfigsPage() {
   const [editing, setEditing] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<any>({});
   useEffect(() => {
-    apiFetch('/api/v1/admin/payments/providers/all')
+    apiFetch('/api/v1/admin/payments/payment-configs')
       .then((res) => {
         if (!res.ok) throw new Error('network')
         return res.json()
@@ -47,7 +48,7 @@ export default function PaymentConfigsPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch('/api/v1/admin/payments/providers/all');
+      const res = await apiFetch('/api/v1/admin/payments/payment-configs');
       if (!res.ok) throw new Error('network');
       const data = await res.json();
       setConfigs(data);
@@ -63,7 +64,7 @@ export default function PaymentConfigsPage() {
     e.preventDefault();
     setProcessing(true);
     try {
-      const res = await apiFetch('/api/v1/admin/payment-configs', {
+      const res = await apiFetch('/api/v1/admin/payments/payment-configs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig),
@@ -97,7 +98,7 @@ export default function PaymentConfigsPage() {
   async function handleSaveEdit(type: string) {
     setProcessingItem(type);
     try {
-      const res = await apiFetch(`/api/v1/admin/payment-configs/${type}`, {
+      const res = await apiFetch(`/api/v1/admin/payments/payment-configs/${type}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editValues),
@@ -138,19 +139,19 @@ export default function PaymentConfigsPage() {
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col">
               <span>Type</span>
-              <select
-                value={newConfig.type}
-                onChange={(e) => setNewConfig({ ...newConfig, type: e.target.value })}
-                className="mt-1"
-              >
-                <option>DIGITAL_PREPAID</option>
-                <option>UPI</option>
-                <option>CARD</option>
-                <option>NET_BANKING</option>
-                <option>CASH_ON_COLLECTION</option>
-                <option>CASH_ON_DELIVERY</option>
-                <option>CASH_ON_PICKUP</option>
-              </select>
+              <Select value={newConfig.type} onValueChange={(v: string) => setNewConfig({ ...newConfig, type: v })}>
+                <SelectTrigger className="mt-1" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DIGITAL_PREPAID">DIGITAL_PREPAID</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="CARD">CARD</SelectItem>
+                  <SelectItem value="NET_BANKING">NET_BANKING</SelectItem>
+                  <SelectItem value="CASH_ON_DELIVERY">CASH_ON_DELIVERY</SelectItem>
+                  <SelectItem value="PAY_AT_PICKUP">PAY_AT_PICKUP</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label className="flex flex-col">
               <span>Display Name</span>
@@ -183,6 +184,8 @@ export default function PaymentConfigsPage() {
         </form>
       )}
 
+      {error && <p className="text-red-500">{error}</p>}
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -191,6 +194,7 @@ export default function PaymentConfigsPage() {
             <TableHead>Description</TableHead>
             <TableHead>Enabled</TableHead>
             <TableHead>Surcharge %</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
