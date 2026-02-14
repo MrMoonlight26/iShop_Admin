@@ -40,10 +40,8 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push(signinPath())
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
+    if (status === 'authenticated' && String((session as any)?.user?.role || '').toLowerCase() !== 'admin') router.push('/')
   }, [status, session, router])
-
-  if (status === 'loading') return null
 
   useEffect(() => {
     api.get('/admin/shops', { params: { limit: 100 } }).then((r) => {
@@ -55,6 +53,8 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchList()
   }, [filterShop, filterPin, statusFilter, windowFilter, page, limit])
+
+  if (status === 'loading') return null
 
   async function fetchList() {
     try {

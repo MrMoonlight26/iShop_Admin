@@ -55,10 +55,8 @@ export default function BusinessCategoriesPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push(signinPath())
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
+    if (status === 'authenticated' && String((session as any)?.user?.role || '').toLowerCase() !== 'admin') router.push('/')
   }, [status, session, router])
-
-  if (status === 'loading') return null
 
   const [page, setPage] = useState(0)
   const [size, setSize] = useState(20)
@@ -68,6 +66,8 @@ export default function BusinessCategoriesPage() {
   useEffect(() => {
     fetchList()
   }, [page, size, sortBy, query])
+
+  if (status === 'loading') return null
 
   async function fetchList() {
     try {

@@ -61,7 +61,7 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push(signinPath())
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
+    if (status === 'authenticated' && String((session as any)?.user?.role || '').toLowerCase() !== 'admin') router.push('/')
   }, [status, session, router])
 
   useEffect(() => {

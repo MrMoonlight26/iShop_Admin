@@ -1,13 +1,17 @@
 import Link from 'next/link'
+import { getApiUrl } from '@/lib/api-config'
+import { cookies } from 'next/headers'
 
 export default async function ShopDetail({ params }: any) {
   const { id } = (await Promise.resolve(params)) as { id: string }
-  const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '')
-  let url = `${API_BASE || ''}/api/v1/admin/shops?id=${id}`
-  if (!API_BASE) url = `/api/v1/admin/shops?id=${id}`
+  const url = getApiUrl(`/api/v1/admin/shops/${id}`)
   let r: Response
   try {
-    r = await fetch(url, { cache: 'no-store' })
+    const cookieStore = cookies()
+    const access = cookieStore.get('ACCESS_TOKEN')?.value
+    const headers: Record<string, string> = {}
+    if (access) headers['authorization'] = `Bearer ${access}`
+    r = await fetch(url, { cache: 'no-store', headers })
   } catch (err: any) {
     const msg = err?.message || String(err)
     return (

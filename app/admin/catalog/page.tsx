@@ -61,11 +61,8 @@ export default function CatalogPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push(signinPath())
-    if (status === 'authenticated' && (session as any)?.user?.role !== 'ADMIN') router.push('/')
+    if (status === 'authenticated' && String((session as any)?.user?.role || '').toLowerCase() !== 'admin') router.push('/')
   }, [status, session, router])
-
-  // Basic client-side check: show nothing while auth status unknown
-  if (status === 'loading') return null
 
   // pagination/search state
   const [pageNumber, setPageNumber] = useState(0) // 0-based
@@ -100,6 +97,9 @@ export default function CatalogPage() {
   useEffect(() => {
     fetchList()
   }, [pageNumber, pageSize, query])
+
+  // Basic client-side check: show nothing while auth status unknown
+  if (status === 'loading') return null
 
   async function fetchList() {
     setIsLoading(true)

@@ -16,7 +16,7 @@ export function AdminLinks() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(open)) } catch {}
   }, [open])
 
-  if (!session || (session as any).user?.role !== 'ADMIN') return null
+  if (!session || String((session as any).user?.role || '').toLowerCase() !== 'admin') return null
 
   return (
     <div>
