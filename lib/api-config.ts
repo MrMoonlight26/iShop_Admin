@@ -34,8 +34,22 @@ export function buildApiUrl(
   endpoint: string,
   params?: Record<string, string | number | boolean>
 ): string {
+  // If running in the browser and calling our v1 backend, route via the
+  // internal proxy so HttpOnly cookies are handled server-side.
+  if (typeof window !== 'undefined' && endpoint.startsWith('/api/v1')) {
+    const suffix = endpoint.replace(/^\/api\/v1/, '')
+    const sp = new URLSearchParams()
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          sp.append(key, String(value))
+        }
+      })
+    }
+    return `/api/proxy${suffix}${sp.toString() ? `?${sp.toString()}` : ''}`
+  }
+
   const url = new URL(getApiUrl(endpoint))
-  
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -43,7 +57,7 @@ export function buildApiUrl(
       }
     })
   }
-  
+
   return url.toString()
 }
 
