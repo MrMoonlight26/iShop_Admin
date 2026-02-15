@@ -39,6 +39,7 @@ export function AdminLinks() {
 
           <a href="/admin/shops" className="px-2 py-1 rounded hover:bg-muted">Shops</a>
           <a href="/admin/categories" className="px-2 py-1 rounded hover:bg-muted">Categories</a>
+          <a href="/admin/brands" className="px-2 py-1 rounded hover:bg-muted">Brands</a>
           <a href="/admin/users" className="px-2 py-1 rounded hover:bg-muted">Users</a>
           <a href="/admin/customers" className="px-2 py-1 rounded hover:bg-muted">Customers</a>
         </div>

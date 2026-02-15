@@ -63,6 +63,10 @@ const data = {
           title: "Categories",
           url: "/admin/categories",
         },
+            {
+              title: "Brands",
+              url: "/admin/brands",
+            },
         {
           title: "Business Categories",
           url: "/admin/business-categories",
