@@ -50,10 +50,10 @@ const data = {
       title: "Catalog Management",
       url: "#",
       icon: IconShoppingCart,
-      items: [
+              items: [
         {
           title: "Unit Types Management",
-          url: "/admin/units",
+          url: "/admin/units/types",
         },
         {
           title: "Unit Classes",

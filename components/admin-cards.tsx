@@ -40,7 +40,7 @@ export function AdminCards() {
 
   const items = [
     { title: 'Products', key: 'productCount', href: '/admin/catalog' },
-    { title: 'Unit Types', key: 'unitCount', href: '/admin/units' },
+    { title: 'Unit Types', key: 'unitCount', href: '/admin/units/types' },
     { title: 'Shops', key: 'shopCount', href: '/admin/shops' },
     { title: 'Vendors', key: 'vendorCount', href: '/admin/users' },
     { title: 'Orders', key: 'orderCount', href: '/admin/orders' },

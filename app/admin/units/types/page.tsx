@@ -30,6 +30,7 @@ export default function UnitTypesPage() {
   const [formMode, setFormMode] = useState<'create'|'edit'>('create')
   const [formValues, setFormValues] = useState<any>({ name: '', abbreviation: '', unitClassId: '', conversionFactor: 1 })
   const [saving, setSaving] = useState(false)
+  const [unitClassFilter, setUnitClassFilter] = useState<string>('')
 
   const [classes, setClasses] = useState<any[]>([])
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -40,6 +41,12 @@ export default function UnitTypesPage() {
     fetchList()
     fetchClasses()
   }, [pageNumber, pageSize, q])
+  
+  useEffect(() => {
+    // refetch when class filter changes
+    setPageNumber(0)
+    fetchList()
+  }, [unitClassFilter])
 
   async function fetchClasses() {
     try {
@@ -67,7 +74,8 @@ export default function UnitTypesPage() {
       const params: Record<string, string | number> = {
         page: pageNumber,
         size: pageSize,
-        ...(q ? { q } : {})
+        ...(q ? { q } : {}),
+        ...(unitClassFilter ? { unitClassId: unitClassFilter } : {})
       }
       let r: any = null
       try {
@@ -109,13 +117,14 @@ export default function UnitTypesPage() {
   }
 
   function openCreate() { setFormMode('create'); setFormValues({ name: '', abbreviation: '', unitClassId: classes[0]?.id ?? '', conversionFactor: 1 }); setFormOpen(true) }
-  function openEdit(t: any) { setFormMode('edit'); setFormValues({ ...t }); setFormOpen(true) }
+  function openEdit(t: any) { setFormMode('edit'); setFormValues({ ...t, id: t.id ?? (t as any).unitTypeId ?? null }); setFormOpen(true) }
 
   async function submitForm(e?: React.FormEvent) {
     e?.preventDefault()
     setSaving(true)
     try {
       const payload = {
+        id: formValues.id,
         name: String(formValues.name || ''),
         abbreviation: String(formValues.abbreviation || ''),
         unitClassId: formValues.unitClassId || undefined,
@@ -134,14 +143,15 @@ export default function UnitTypesPage() {
           }
         }
       } else {
+        const id = formValues.id
+        if (!id) throw new Error('Missing unit type id for update')
         try {
-          r = await api.patch(`/admin/units/types/${formValues.id}`, payload)
+          r = await api.patch(`/admin/units/types/${id}`, payload)
         } catch (e: any) {
           if (e.response?.status === 404) {
-            r = await api.put('/admin/units/types', { id: formValues.id, ...payload })
-          } else {
-            throw e
-          }
+            // fallback: attempt PUT path that accepts id in body
+            r = await api.put('/admin/units/types', { id, ...payload })
+          } else throw e
         }
       }
 
@@ -195,12 +205,16 @@ export default function UnitTypesPage() {
         <div className="p-4">
             <div className="mb-4 flex items-center gap-2">
             <Input placeholder="Search by name or abbreviation" value={q} onChange={(e) => { setQ(e.target.value); setPageNumber(0) }} className="min-w-[280px]" />
-            <Select value={String(formValues.unitClassId ?? '')} onValueChange={(v) => setFormValues((s: any) => ({ ...s, unitClassId: v }))}>
-              <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {classes.map((cl) => <SelectItem key={cl.id} value={cl.id}>{cl.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+                    <Select value={String(unitClassFilter ?? '')} onValueChange={(v) => { setUnitClassFilter(v); setPageNumber(0); fetchList() }}>
+                      <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cl) => {
+                          const base = cl.baseUnitName ?? cl.baseUnit ?? ''
+                          const label = base ? `${cl.name} — ${base}` : cl.name
+                          return <SelectItem key={cl.id} value={cl.id}>{label}</SelectItem>
+                        })}
+                      </SelectContent>
+                    </Select>
             <Button onClick={() => { setQ(''); setPageNumber(0); fetchList() }}>Clear</Button>
             <Button onClick={openCreate}>Add Unit Type</Button>
           </div>
@@ -273,7 +287,11 @@ export default function UnitTypesPage() {
                 <Label>Unit Class</Label>
                 <select value={String(formValues.unitClassId ?? '')} onChange={(e) => setFormValues((s: any) => ({ ...s, unitClassId: e.target.value }))} className="border rounded px-2 py-2 w-full">
                   <option value="">Select class</option>
-                  {classes.map((cl)=> <option key={cl.id} value={cl.id}>{cl.name}</option>)}
+                  {classes.map((cl)=> {
+                    const base = cl.baseUnitName ?? cl.baseUnit ?? ''
+                    const label = base ? `${cl.name} — ${base}` : cl.name
+                    return <option key={cl.id} value={cl.id}>{label}</option>
+                  })}
                 </select>
               </div>
               <div>

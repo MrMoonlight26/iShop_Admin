@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       {
         id: unitClass.id,
         name: unitClass.name,
-        baseUnit: unitClass.baseUnitName,
+        baseUnitName: unitClass.baseUnitName,
       },
       { status: 201 }
     )

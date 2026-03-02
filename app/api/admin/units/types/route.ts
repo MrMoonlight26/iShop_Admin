@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     const pageStr = searchParams.get('page') || '0'
     const sizeStr = searchParams.get('size') || '20'
     const q = searchParams.get('q') || ''
+    const classId = searchParams.get('unitClassId') || ''
 
     const pageNumber = Math.max(0, parseInt(pageStr, 10) || 0)
     const pageSize = Math.max(1, parseInt(sizeStr, 10) || 20)
@@ -25,6 +26,9 @@ export async function GET(req: NextRequest) {
         { name: { contains: q, mode: 'insensitive' } },
         { abbreviation: { contains: q, mode: 'insensitive' } },
       ]
+    }
+    if (classId) {
+      where.unitClassId = classId
     }
 
     // Get total count
@@ -137,5 +141,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unit type name already exists' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Failed to create unit type' }, { status: 500 })
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  if (!(await isAuthorized(req))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const body = await req.json()
+    const { id, name, abbreviation, conversionFactor, unitClassId } = body
+
+    if (!id || typeof id !== 'string' || id.trim().length === 0) {
+      return NextResponse.json({ error: 'Missing or invalid id' }, { status: 400 })
+    }
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return NextResponse.json({ error: 'Missing or invalid name' }, { status: 400 })
+    }
+
+    const unitType = await prisma.unitType.update({
+      where: { id: id.trim() },
+      data: {
+        name: name.trim(),
+        abbreviation: abbreviation ? String(abbreviation).trim() : null,
+        conversionFactor: typeof conversionFactor === 'number' ? conversionFactor : 1,
+        unitClassId: unitClassId ? String(unitClassId).trim() : null,
+      },
+      include: {
+        unitClass: {
+          select: { id: true, name: true }
+        }
+      }
+    })
+
+    return NextResponse.json({
+      id: unitType.id,
+      unitClassId: unitType.unitClassId,
+      name: unitType.name,
+      unitClassName: unitType.unitClass?.name,
+      abbreviation: unitType.abbreviation,
+      conversionFactor: unitType.conversionFactor,
+    })
+  } catch (err: any) {
+    console.error('PUT /api/admin/units/types error:', err)
+    if (err.code === 'P2025') {
+      return NextResponse.json({ error: 'Unit type not found' }, { status: 404 })
+    }
+    if (err.code === 'P2002') {
+      return NextResponse.json({ error: 'Unit type name already exists' }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Failed to update unit type' }, { status: 500 })
   }
 }

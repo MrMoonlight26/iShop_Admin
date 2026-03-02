@@ -42,7 +42,7 @@ export default function SignInPage() {
 
       // success — perform a full navigation so cookies set by the server are included
       if (!res.isProfileComplete) window.location.href = '/admin/settings/profile'
-      else window.location.href = '/admin/units'
+      else window.location.href = '/admin/units/types'
     } catch (err: any) {
       toast.error(String(err?.message || 'Sign in failed'))
     } finally {

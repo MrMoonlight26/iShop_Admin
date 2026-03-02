@@ -21,6 +21,11 @@ const processQueue = (error: any, token: string | null = null) => {
 api.interceptors.request.use((config) => {
   // Do not attach Authorization here; proxy route will read HttpOnly cookie and set it server-side.
   config.headers = { ...(config.headers as any), 'X-Client-Id': 'ADMIN_APP', 'X-App-Instance-Id': authService.getAppInstanceId() }
+  try {
+    // diagnostic: helpful when debugging requests from the client
+    // eslint-disable-next-line no-console
+    console.debug('[api] request:', { method: config.method, baseURL: config.baseURL, url: config.url, withCredentials: config.withCredentials })
+  } catch (e) {}
   return config
 })
 

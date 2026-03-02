@@ -28,6 +28,7 @@ export default function UnitClassesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formValues, setFormValues] = useState<any>({ name: '', baseUnitName: '' })
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // rely on server middleware + RequireAuth for auth checks
 
@@ -88,19 +89,38 @@ export default function UnitClassesPage() {
         name: String(formValues.name || ''),
         baseUnitName: String(formValues.baseUnitName || ''),
       }
+      // diagnostic logging to verify client sends expected payload
+      // eslint-disable-next-line no-console
+      console.debug('[UnitClasses] submitForm payload:', payload)
       let r: any = null
-      try {
-        r = await api.post('/admin/units/classes', payload)
-      } catch (e: any) {
-        if (e.response?.status === 404) {
+      if (editingId) {
+        try {
+          r = await api.patch(`/admin/units/classes/${editingId}`, payload)
+        } catch (e: any) {
+          if (e.response?.status === 404) {
+            r = await api.patch(`/admin/units/classes/${editingId}`, payload)
+          } else throw e
+        }
+        await r.data
+        toast.success('Unit class updated')
+        setEditingId(null)
+        setFormOpen(false)
+        setFormValues({ name: '', baseUnitName: '' })
+        fetchList()
+      } else {
+        try {
           r = await api.post('/admin/units/classes', payload)
-        } else throw e
+        } catch (e: any) {
+          if (e.response?.status === 404) {
+            r = await api.post('/admin/units/classes', payload)
+          } else throw e
+        }
+        await r.data
+        toast.success('Unit class created')
+        setFormOpen(false)
+        setFormValues({ name: '', baseUnitName: '' })
+        fetchList()
       }
-      await r.data
-      toast.success('Unit class created')
-      setFormOpen(false)
-      setFormValues({ name: '', baseUnitName: '' })
-      fetchList()
     } catch (err) {
       toast.error(String(err))
     } finally {
@@ -117,10 +137,10 @@ export default function UnitClassesPage() {
           <CardDescription>Manage unit classes used to group unit types</CardDescription>
         </CardHeader>
         <div className="p-4">
-          <div className="mb-4 flex items-center gap-2">
+            <div className="mb-4 flex items-center gap-2">
             <Input placeholder="Search by name" value={q} onChange={(e) => { setQ(e.target.value); setPageNumber(0) }} className="min-w-[240px]" />
             <Button onClick={() => { setQ(''); setPageNumber(0); fetchList() }}>Clear</Button>
-            <Button onClick={() => { setFormOpen(true); setFormValues({ name: '', baseUnitName: '' }) }}>Add Unit Class</Button>
+            <Button onClick={() => { setEditingId(null); setFormOpen(true); setFormValues({ name: '', baseUnitName: '' }) }}>Add Unit Class</Button>
           </div>
 
           <Table>
@@ -140,7 +160,8 @@ export default function UnitClassesPage() {
                   <TableCell>{c.baseUnitName ?? ''}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
-                      {/* For now we only support create; editing can be added later */}
+                      <Button onClick={() => { setEditingId(c.id); setFormValues({ name: c.name, baseUnitName: c.baseUnitName ?? '' }); setFormOpen(true) }}>Edit</Button>
+                      {/* Delete could be added here if needed */}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -167,11 +188,11 @@ export default function UnitClassesPage() {
         <CardFooter />
 
         {/* Create Modal */}
-        <Sheet open={formOpen} onOpenChange={(open) => setFormOpen(open)}>
+        <Sheet open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingId(null) }}>
           <SheetContent side="right">
             <SheetHeader>
-              <SheetTitle>Add Unit Class</SheetTitle>
-              <SheetDescription>Create a new unit class</SheetDescription>
+              <SheetTitle>{editingId ? 'Edit Unit Class' : 'Add Unit Class'}</SheetTitle>
+              <SheetDescription>{editingId ? 'Update the selected unit class' : 'Create a new unit class'}</SheetDescription>
             </SheetHeader>
             <form onSubmit={submitForm} className="p-4 space-y-3">
               <div>
@@ -183,8 +204,8 @@ export default function UnitClassesPage() {
                 <Input value={String(formValues.baseUnitName || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, baseUnitName: e.target.value }))} />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create'}</Button>
-                <Button variant="secondary" onClick={() => setFormOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={saving}>{saving ? 'Saving...' : (editingId ? 'Save' : 'Create')}</Button>
+                <Button variant="secondary" onClick={() => { setFormOpen(false); setEditingId(null) }}>Cancel</Button>
               </div>
             </form>
           </SheetContent>
