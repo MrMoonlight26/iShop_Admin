@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { toast } from 'sonner' 
+import { formatErrorMessage } from '@/lib/api-helpers'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -51,6 +52,7 @@ export default function CategoriesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create'|'edit'>('create')
   const [formValues, setFormValues] = useState<any>({ active: true })
+  const [businessCategories, setBusinessCategories] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [deleteCandidate, setDeleteCandidate] = useState<any | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -65,8 +67,12 @@ export default function CategoriesPage() {
   }, [status, session, router])
 
   useEffect(() => {
-    if (status === 'authenticated') fetchList()
+    if (status === 'authenticated') fetchBusinessCategories()
   }, [status])
+
+  useEffect(() => {
+    if (status === 'authenticated') fetchList()
+  }, [status, pageNumber, pageSize, sortBy, sortDir, q])
 
   if (status === 'loading') return null
 
@@ -76,7 +82,7 @@ export default function CategoriesPage() {
       const params = new URLSearchParams()
       params.set('page', String(pageNumber))
       params.set('size', String(pageSize))
-      params.set('sort', `${sortBy},${sortDir}`)
+        params.set('sort', `${sortBy},${sortDir}`)
       if (q) params.set('q', q)
 
       // try v1 first, fallback to legacy endpoint (API_BASE can point to separate backend)
@@ -126,8 +132,23 @@ export default function CategoriesPage() {
       }
     } catch (e) {
       setItems([])
+      toast.error(formatErrorMessage(e))
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function fetchBusinessCategories() {
+    try {
+      const url = buildApiUrl('/api/v1/admin/business-categories')
+      const r = await fetch(url, { credentials: 'same-origin' })
+      if (!r.ok) throw new Error(await r.text())
+      const data = await r.json()
+      setBusinessCategories(Array.isArray(data) ? data : (data.content || data.data || []))
+    } catch (err) {
+      // non-blocking; show friendly toast
+      toast.error(formatErrorMessage(err))
+      setBusinessCategories([])
     }
   }
 
@@ -156,6 +177,7 @@ export default function CategoriesPage() {
         code: formValues.code || undefined,
         shortCode: formValues.shortCode || undefined,
         slug: formValues.slug || undefined,
+        businessCategoryId: formValues.businessCategoryId || undefined,
         description: formValues.description || undefined,
         parentId: formValues.parentId || undefined,
         active: !!formValues.active,
@@ -182,7 +204,7 @@ export default function CategoriesPage() {
       setFormOpen(false)
       fetchList()
     } catch (err) {
-      toast.error(String(err))
+      toast.error(formatErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -208,7 +230,8 @@ export default function CategoriesPage() {
       setDeleteCandidate(null)
       fetchList()
     } catch (err) {
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      toast.error(msg)
     } finally {
       setDeleting(false)
     }
@@ -220,6 +243,8 @@ export default function CategoriesPage() {
     const body: any = { name }
     if (slug) body.slug = slug
     if (parentId) body.parentId = parentId
+    // include businessCategoryId when present
+    if ((formValues as any).businessCategoryId) body.businessCategoryId = (formValues as any).businessCategoryId
 
     const promise = (async () => {
       const url = buildApiUrl('/api/v1/admin/categories')
@@ -317,7 +342,7 @@ export default function CategoriesPage() {
                 <SelectItem value={`createdAt,desc`}>Created ↓</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={() => { setQ(''); setPageNumber(0); fetchList() }}>Clear</Button>
+            <Button onClick={() => { setQ(''); setPageNumber(0); }}>Clear</Button>
             <Button onClick={() => openCreate()}>Add New Category</Button>
           </div>
 
@@ -425,10 +450,10 @@ export default function CategoriesPage() {
           <div className="mt-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">Total: {totalElements ?? '—'}</div>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); fetchList() }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
               <div className="text-sm">Page { (pageNumber + 1) }{ totalPages ? ` of ${totalPages}` : '' }</div>
-              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); fetchList() }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
-              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-1">
+              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
+              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-1">
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>
@@ -500,6 +525,13 @@ export default function CategoriesPage() {
               <div className="col-span-2">
                 <Label>Description</Label>
                 <Input value={String(formValues.description || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, description: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Business Category</Label>
+                <select className="border-input rounded-md px-3 py-2 text-foreground min-w-[160px]" value={formValues.businessCategoryId ?? ''} onChange={(e) => setFormValues((s: any) => ({ ...s, businessCategoryId: e.target.value || undefined }))}>
+                  <option value="">Select business category</option>
+                  {businessCategories.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
               </div>
               <div>
                 <Label>Parent</Label>

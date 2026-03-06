@@ -171,7 +171,7 @@ export default function ShopsPage() {
 
         {error && <ErrorAlert error={error} onRetry={fetchList} />}
 
-        <form onSubmit={(e) => { e.preventDefault(); setPageNumber(0); fetchList() }} className="flex gap-2 flex-wrap items-center">
+        <form onSubmit={(e) => { e.preventDefault(); setPageNumber(0); }} className="flex gap-2 flex-wrap items-center">
           <Input
             placeholder="Search shops by name, owner, or area"
             value={query}
@@ -211,7 +211,7 @@ export default function ShopsPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => { setQuery(''); setStatusFilter(''); setOwnerTypeFilter(''); setPageNumber(0); fetchList() }}
+            onClick={() => { setQuery(''); setStatusFilter(''); setOwnerTypeFilter(''); setPageNumber(0); }}
           >
             Clear
           </Button>

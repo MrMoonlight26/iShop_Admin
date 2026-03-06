@@ -51,9 +51,20 @@ async function proxy(req: Request) {
     const externalRes = await fetch(target, { method, headers, body })
     // eslint-disable-next-line no-console
     console.debug('[proxy] target:', target, 'attached Authorization?', !!headers['Authorization'])
-    const resBody = await externalRes.arrayBuffer()
+
+    // read text for diagnostics (log small snippet) then convert to arrayBuffer for response
+    let resText = ''
+    try {
+      resText = await externalRes.text()
+    } catch (e) {
+      // if text() fails, fallback to empty
+      resText = ''
+    }
     // eslint-disable-next-line no-console
-    console.debug('[proxy] external response status', externalRes.status)
+    console.debug('[proxy] external response status', externalRes.status, 'body-snippet:', String(resText).slice(0, 1000))
+
+    const encoder = new TextEncoder()
+    const resBody = encoder.encode(resText).buffer
 
     const res = new NextResponse(resBody, { status: externalRes.status })
     // copy content-type

@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-config";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
+import { formatErrorMessage } from '@/lib/api-helpers'
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
@@ -17,7 +19,7 @@ import {
 export default function PaymentConfigsPage() {
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
 
@@ -40,21 +42,22 @@ export default function PaymentConfigsPage() {
         return res.json()
       })
       .then(setConfigs)
-      .catch(() => setError('Failed to load payment configs.'))
+      .catch((e) => { const msg = formatErrorMessage(e); setError(msg); toast.error(msg); })
       .finally(() => setLoading(false))
   }, [])
 
   async function reload() {
     setLoading(true);
-    setError("");
+    setError(null);
     try {
       const res = await apiFetch('/api/v1/admin/payments/payment-configs');
       if (!res.ok) throw new Error('network');
       const data = await res.json();
       setConfigs(data);
     } catch (e) {
-      setError('Failed to load payment configs.');
-      toast.error('Failed to load payment configs.');
+      const msg = formatErrorMessage(e)
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -87,7 +90,7 @@ export default function PaymentConfigsPage() {
       toast.success('Payment config created');
       await reload();
     } catch (err: any) {
-      const msg = err?.message || 'Failed to create payment config.';
+      const msg = formatErrorMessage(err) || (err?.message || 'Failed to create payment config.')
       setError(msg);
       toast.error('Create failed: ' + msg);
     } finally {
@@ -113,7 +116,7 @@ export default function PaymentConfigsPage() {
       toast.success('Payment config updated');
       await reload();
     } catch (err: any) {
-      const msg = err?.message || 'Failed to update payment config.';
+      const msg = formatErrorMessage(err) || (err?.message || 'Failed to update payment config.')
       setError(msg);
       toast.error('Update failed: ' + msg);
     } finally {
@@ -124,7 +127,7 @@ export default function PaymentConfigsPage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Payment Configurations</h1>
-      {loading && <p>Loading...</p>}
+      {loading && <div className="py-6"><LoadingSpinner text="Loading payment configs..." /></div>}
       <div className="flex items-center justify-between mb-4">
         <div />
         <div>
@@ -184,7 +187,7 @@ export default function PaymentConfigsPage() {
         </form>
       )}
 
-      {error && <p className="text-red-500">{error}</p>}
+      {error && <ErrorAlert error={error} onRetry={reload} />}
 
       <Table>
         <TableHeader>

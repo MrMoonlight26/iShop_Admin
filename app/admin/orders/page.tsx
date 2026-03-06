@@ -164,7 +164,7 @@ export default function OrdersPage() {
             <SelectItem value="90">Last 90 days</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => { setPage(0); fetchList() }} variant="secondary">
+        <Button onClick={() => { setPage(0); }} variant="secondary">
           Filter
         </Button>
       </div>

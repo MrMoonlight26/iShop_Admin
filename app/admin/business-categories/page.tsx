@@ -133,7 +133,6 @@ export default function BusinessCategoriesPage() {
       setEditingId(null)
       setFormData({ name: '', code: '', active: true })
       setPage(0)
-      fetchList()
     } catch (err) {
       setError(formatErrorMessage(err))
     }

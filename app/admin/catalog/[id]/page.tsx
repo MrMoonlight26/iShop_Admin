@@ -96,6 +96,11 @@ export default async function ProductDetail({ params }: any) {
         </div>
       )}
 
+      <div className="mt-6 p-4 border rounded">
+        <h2 className="text-lg font-medium mb-2">Raw JSON</h2>
+        <pre className="text-xs bg-gray-50 p-3 rounded overflow-auto">{JSON.stringify(p, null, 2)}</pre>
+      </div>
+
     </div>
   )
 }

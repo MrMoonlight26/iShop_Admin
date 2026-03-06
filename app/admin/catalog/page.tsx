@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
+import { formatErrorMessage } from '@/lib/api-helpers'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -71,6 +73,8 @@ export default function CatalogPage() {
   const [totalElements, setTotalElements] = useState<number | null>(null)
   const [totalPages, setTotalPages] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
 
   useEffect(() => {
     fetchList()
@@ -101,24 +105,49 @@ export default function CatalogPage() {
   // Basic client-side check: show nothing while auth status unknown
   if (status === 'loading') return null
 
-  async function fetchList() {
+  async function fetchList(overridePage?: number) {
     setIsLoading(true)
+    setError(null)
+    const pageToUse = typeof overridePage === 'number' ? overridePage : pageNumber
     const params: Record<string, string | number> = {
-      page: pageNumber,
+      page: pageToUse,
       size: pageSize,
       ...(query ? { q: query } : {})
     }
     try {
+      // diagnostic log: outgoing request params
+      // eslint-disable-next-line no-console
+      console.debug('[Catalog] request params:', params)
       const r = await api.get('/admin/catalog', { params })
+      
       const data = r.data
       const items = Array.isArray(data.content) ? data.content : []
       setProducts(items)
+      setError(null)
       setTotalElements(typeof data.totalElements === 'number' ? data.totalElements : (Array.isArray(items) ? items.length : null))
       setTotalPages(typeof data.totalPages === 'number' ? data.totalPages : null)
     } catch (err) {
       setProducts([])
       setTotalElements(null)
       setTotalPages(null)
+      // Log detailed error info for diagnostics
+      try {
+        // axios error
+        // eslint-disable-next-line no-console
+        console.error('[Catalog] fetchList error:', {
+          message: err?.message,
+          isAxiosError: (err as any)?.isAxiosError,
+          url: (err as any)?.config?.url ?? '/admin/catalog',
+          method: (err as any)?.config?.method,
+          status: (err as any)?.response?.status,
+          responseData: (err as any)?.response?.data
+        })
+      } catch (e) {}
+      // set last API info from error if available
+      
+      const msg = formatErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }
@@ -133,11 +162,16 @@ export default function CatalogPage() {
         setUnits(data)
         if (data && data.length && !createUnitTypeId) setCreateUnitTypeId(data[0].id)
       } catch (e) {
+        const msg = formatErrorMessage(e)
+        setError(msg)
+        toast.error(msg)
         setUnits([])
         return
       }
     } catch (e) {
-      console.error('Failed to load units', e)
+      const msg = formatErrorMessage(e)
+      setError(msg)
+      toast.error(msg)
       setUnits([])
     } finally {
       setIsUnitsLoading(false)
@@ -159,7 +193,9 @@ export default function CatalogPage() {
       setCategories(arr)
       if (arr.length && !createCategoryId) setCreateCategoryId(arr[0].id)
     } catch (e) {
-      console.error('Failed to load categories', e)
+      const msg = formatErrorMessage(e)
+      setError(msg)
+      toast.error(msg)
       setCategories([])
     } finally {
       setIsCategoriesLoading(false)
@@ -211,9 +247,9 @@ export default function CatalogPage() {
       setCreateAdditionalInfo('')
       setCreateActive(true)
 
-      // refresh
+      // refresh to first page
       setPageNumber(0)
-      await fetchList()
+      await fetchList(0)
     } catch (err) {
       // handled by toast
     } finally {
@@ -283,10 +319,10 @@ export default function CatalogPage() {
     const pages = Math.max(1, totalPages ?? Math.max(1, Math.ceil((totalElements ?? 0) / pageSize)))
     return (
       <div className="flex items-center gap-2 mt-4">
-        <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); fetchList() }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+        <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
         <div>Page {pageNumber + 1} of {pages}</div>
-        <button onClick={() => { setPageNumber((p) => Math.min(pages - 1, p + 1)); fetchList() }} disabled={pageNumber >= (pages - 1)} className="px-2 py-1 border rounded">Next</button>
-        <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-1">
+        <button onClick={() => { setPageNumber((p) => Math.min(pages - 1, p + 1)); }} disabled={pageNumber >= (pages - 1)} className="px-2 py-1 border rounded">Next</button>
+        <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-1">
           <option value={10}>10</option>
           <option value={20}>20</option>
           <option value={50}>50</option>
@@ -306,19 +342,26 @@ export default function CatalogPage() {
 
 
 
-          <form onSubmit={(e) => { e.preventDefault(); setPageNumber(0); fetchList() }} className="mb-4 flex gap-2 items-center">
+          <form onSubmit={(e) => { e.preventDefault(); setPageNumber(0); }} className="mb-4 flex gap-2 items-center">
             <input placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} className="border rounded px-3 py-2 flex-1 min-w-[240px]" />
-            <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-2">
+            <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-2">
               <option value={10}>10</option>
               <option value={20}>20</option>
               <option value={50}>50</option>
             </select>
             <button className="bg-blue-600 text-white px-4 py-2 rounded">Search</button>
-            <button type="button" onClick={() => { setQuery(''); setPageNumber(0); fetchList() }} className="px-3 py-2 border rounded">Clear</button>
+            <button type="button" onClick={() => { setQuery(''); setPageNumber(0); }} className="px-3 py-2 border rounded">Clear</button>
             <Button onClick={() => setCreateOpen(true)} className="ml-2">Create product</Button>
           </form>
 
-          <Table>
+          
+
+          {isLoading ? (
+            <div className="py-12 flex justify-center"><LoadingSpinner text="Loading products..." /></div>
+          ) : error ? (
+            <ErrorAlert error={error} onRetry={fetchList} />
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Image</TableHead>
@@ -331,7 +374,7 @@ export default function CatalogPage() {
             </TableHeader>
             <TableBody>
               {products.map((p: any) => (
-                <TableRow key={p.productId ?? p.id}>
+                <TableRow key={p.productId ?? p.id} onClick={() => router.push(`/admin/catalog/${p.productId ?? p.id}`)} className="cursor-pointer">
                   <TableCell>
                     {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-12 h-12 object-cover rounded" /> : <div className="w-12 h-12 bg-gray-100 rounded" />}
                   </TableCell>
@@ -340,24 +383,25 @@ export default function CatalogPage() {
                     <div className="text-xs text-muted-foreground">ID: {p.productId ?? p.id}</div>
                   </TableCell>
                   <TableCell>
-                    {p.sku}
+                    {p.sku ?? (Array.isArray(p.variants) && p.variants.length ? p.variants[0].sku : '—')}
                   </TableCell>
                   <TableCell>
-                    {p.barcode}
+                    {p.barcode ?? (Array.isArray(p.variants) && p.variants.length ? p.variants[0].barcode : '—')}
                   </TableCell>
                   <TableCell>
                     {p.description}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex gap-2 justify-end">
-                      <Button onClick={() => startEdit(p)} variant="outline">Edit</Button>
-                      <Button onClick={() => deleteProduct(p.id || p.productId)} className="bg-red-600" disabled={deletingId === (p.id || p.productId)}>{deletingId === (p.id || p.productId) ? 'Deleting...' : 'Delete'}</Button>
+                      <Button onClick={(e: any) => { e.stopPropagation(); startEdit(p); }} variant="outline">Edit</Button>
+                      <Button onClick={(e: any) => { e.stopPropagation(); deleteProduct(p.id || p.productId); }} className="bg-red-600" disabled={deletingId === (p.id || p.productId)}>{deletingId === (p.id || p.productId) ? 'Deleting...' : 'Delete'}</Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          )}
 
           <Sheet open={createOpen} onOpenChange={(open) => setCreateOpen(open)}>
             <SheetContent side="right">

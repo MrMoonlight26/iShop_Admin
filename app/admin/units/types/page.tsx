@@ -11,6 +11,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { toast } from 'sonner'
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
+import { formatErrorMessage } from '@/lib/api-helpers'
 import { api } from '@/lib/apiClient'
 import { signinPath } from '@/lib/appPaths'
 
@@ -25,6 +27,7 @@ export default function UnitTypesPage() {
   const [pageSize, setPageSize] = useState(20)
   const [totalElements, setTotalElements] = useState<number | null>(null)
   const [totalPages, setTotalPages] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create'|'edit'>('create')
@@ -40,13 +43,7 @@ export default function UnitTypesPage() {
   useEffect(() => {
     fetchList()
     fetchClasses()
-  }, [pageNumber, pageSize, q])
-  
-  useEffect(() => {
-    // refetch when class filter changes
-    setPageNumber(0)
-    fetchList()
-  }, [unitClassFilter])
+  }, [pageNumber, pageSize, q, unitClassFilter])
 
   async function fetchClasses() {
     try {
@@ -64,6 +61,9 @@ export default function UnitTypesPage() {
       const content = data.content ?? data
       setClasses(Array.isArray(content) ? content : [])
     } catch (err) {
+      const msg = formatErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
       setClasses([])
     }
   }
@@ -110,7 +110,9 @@ export default function UnitTypesPage() {
       setItems([])
       setTotalElements(0)
       setTotalPages(1)
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }
@@ -161,7 +163,9 @@ export default function UnitTypesPage() {
       setFormOpen(false)
       fetchList()
     } catch (err) {
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      toast.error(msg)
+      setError(msg)
     } finally {
       setSaving(false)
     }
@@ -188,7 +192,9 @@ export default function UnitTypesPage() {
       setConfirmDeleteId(null)
       fetchList()
     } catch (err) {
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      toast.error(msg)
+      setError(msg)
     } finally {
       setDeleting(null)
     }
@@ -205,7 +211,7 @@ export default function UnitTypesPage() {
         <div className="p-4">
             <div className="mb-4 flex items-center gap-2">
             <Input placeholder="Search by name or abbreviation" value={q} onChange={(e) => { setQ(e.target.value); setPageNumber(0) }} className="min-w-[280px]" />
-                    <Select value={String(unitClassFilter ?? '')} onValueChange={(v) => { setUnitClassFilter(v); setPageNumber(0); fetchList() }}>
+                    <Select value={String(unitClassFilter ?? '')} onValueChange={(v) => { setUnitClassFilter(v); setPageNumber(0); }}>
                       <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {classes.map((cl) => {
@@ -215,11 +221,16 @@ export default function UnitTypesPage() {
                         })}
                       </SelectContent>
                     </Select>
-            <Button onClick={() => { setQ(''); setPageNumber(0); fetchList() }}>Clear</Button>
+            <Button onClick={() => { setQ(''); setPageNumber(0); }}>Clear</Button>
             <Button onClick={openCreate}>Add Unit Type</Button>
           </div>
 
-          <Table>
+          {isLoading ? (
+            <div className="py-12 flex justify-center"><LoadingSpinner text="Loading unit types..." /></div>
+          ) : error ? (
+            <ErrorAlert error={error} onRetry={fetchList} />
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
@@ -247,16 +258,17 @@ export default function UnitTypesPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          )}
 
           {/* Pagination */}
           <div className="mt-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">Total: {totalElements ?? '—'}</div>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); fetchList() }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
               <div className="text-sm">Page { (pageNumber + 1) }{ totalPages ? ` of ${totalPages}` : '' }</div>
-              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); fetchList() }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
-              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-1">
+              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
+              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-1">
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>

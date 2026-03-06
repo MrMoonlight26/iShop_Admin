@@ -109,7 +109,7 @@ export default function CustomersPage() {
 
       {error && <ErrorAlert error={error} onRetry={fetchList} />}
 
-      <form onSubmit={(e) => { e.preventDefault(); setPage(0); fetchList() }} className="flex gap-2">
+      <form onSubmit={(e) => { e.preventDefault(); setPage(0); }} className="flex gap-2">
         <Input
           placeholder="Search customers by name or email"
           value={query}

@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/api-helpers'
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
@@ -17,6 +19,14 @@ import { signinPath } from '@/lib/appPaths'
 export default function BrandsPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pageNumber, setPageNumber] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
+  const [totalElements, setTotalElements] = useState<number | null>(null)
+  const [totalPages, setTotalPages] = useState<number | null>(null)
+  const [q, setQ] = useState('')
+  const [sortBy, setSortBy] = useState<'name'|'id'|'createdAt'>('name')
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create'|'edit'>('create')
   const [formValues, setFormValues] = useState<any>({ isActive: true })
@@ -30,21 +40,41 @@ export default function BrandsPage() {
     if (status === 'authenticated' && String((session as any)?.user?.role || '').toLowerCase() !== 'admin') router.push('/')
   }, [status, session, router])
 
-  useEffect(() => { if (status === 'authenticated') fetchList() }, [status])
+  useEffect(() => { if (status === 'authenticated') fetchList() }, [status, pageNumber, pageSize, sortBy, sortDir, q])
 
   async function fetchList() {
     setLoading(true)
+    setError(null)
     try {
-      const url = buildApiUrl('/api/v1/brands')
+      const params: Record<string, string | number | boolean> = {
+        page: pageNumber,
+        size: pageSize,
+        sort: `${sortBy},${sortDir}`,
+        ...(q ? { q } : {})
+      }
+      const url = buildApiUrl('/api/v1/brands', params)
       const r = await fetch(url, { credentials: 'same-origin' })
       if (!r.ok) throw new Error(await r.text())
       const data = await r.json()
-      // Accept paged or array
-      if (data && data.content) setItems(data.content)
-      else if (Array.isArray(data)) setItems(data)
-      else setItems([])
+      if (data && data.content) {
+        setItems(data.content)
+        if (data.page) {
+          setPageNumber(typeof data.page.number === 'number' ? Number(data.page.number) : pageNumber)
+          setPageSize(typeof data.page.size === 'number' ? Number(data.page.size) : pageSize)
+          setTotalElements(typeof data.page.totalElements === 'number' ? Number(data.page.totalElements) : null)
+          setTotalPages(typeof data.page.totalPages === 'number' ? Number(data.page.totalPages) : null)
+        }
+      } else if (Array.isArray(data)) {
+        setItems(data)
+        setTotalElements(data.length)
+        setTotalPages(Math.max(1, Math.ceil(data.length / pageSize)))
+      } else {
+        setItems([])
+      }
     } catch (err) {
       setItems([])
+      setError(formatErrorMessage(err))
+      toast.error(formatErrorMessage(err))
     } finally { setLoading(false) }
   }
 
@@ -87,7 +117,9 @@ export default function BrandsPage() {
       setFormOpen(false)
       fetchList()
     } catch (err) {
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      toast.error(msg)
+      setError(msg)
     } finally {
       setSaving(false)
     }
@@ -104,9 +136,24 @@ export default function BrandsPage() {
           <div className="mb-4 flex items-center gap-2">
             <Button onClick={openCreate}>Add New Brand</Button>
             <Button onClick={fetchList}>Refresh</Button>
+            <Input placeholder="Search brands" value={q} onChange={(e) => { setQ(e.target.value); setPageNumber(0) }} className="min-w-[240px]" />
+            <select value={sortBy} onChange={(e) => { setSortBy(e.target.value as any); setPageNumber(0) }} className="border rounded px-2 py-1">
+              <option value="name">Name</option>
+              <option value="id">ID</option>
+              <option value="createdAt">Created</option>
+            </select>
+            <select value={sortDir} onChange={(e) => { setSortDir(e.target.value as any); setPageNumber(0) }} className="border rounded px-2 py-1">
+              <option value="asc">Asc</option>
+              <option value="desc">Desc</option>
+            </select>
           </div>
 
-          <Table>
+          {loading ? (
+            <div className="py-12 flex justify-center"><LoadingSpinner text="Loading brands..." /></div>
+          ) : error ? (
+            <ErrorAlert error={error} onRetry={fetchList} />
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
@@ -139,7 +186,23 @@ export default function BrandsPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          )}
+
+          {/* Pagination */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">Total: {totalElements ?? '—'}</div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+              <div className="text-sm">Page { (pageNumber + 1) }{ totalPages ? ` of ${totalPages}` : '' }</div>
+              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
+              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-1">
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
         </div>
       </Card>
 

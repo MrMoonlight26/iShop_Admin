@@ -138,7 +138,7 @@ export default function UsersPage() {
 
       {error && <ErrorAlert error={error} onRetry={fetchList} />}
 
-      <form onSubmit={(e) => { e.preventDefault(); setPage(0); fetchList() }} className="flex gap-2 flex-wrap items-center">
+      <form onSubmit={(e) => { e.preventDefault(); setPage(0); }} className="flex gap-2 flex-wrap items-center">
         <Input
           placeholder="Search vendors by name or mobile"
           value={query}

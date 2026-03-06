@@ -30,9 +30,19 @@ api.interceptors.request.use((config) => {
 })
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('[api] response:', { url: res.config?.url, method: res.config?.method, status: res.status, data: typeof res.data === 'object' ? JSON.stringify(res.data).slice(0, 1000) : String(res.data).slice(0, 1000) })
+    } catch (e) {}
+    return res
+  },
   async (error: AxiosError & { config?: AxiosRequestConfig }) => {
     const originalConfig = error.config
+    try {
+      // eslint-disable-next-line no-console
+      console.error('[api] response error:', { url: originalConfig?.url, status: error.response?.status, data: error.response?.data })
+    } catch (e) {}
 
     if (error.response?.status === 401 && originalConfig && !(originalConfig as any)._retry) {
         // Log the 401 and the request URL for debugging

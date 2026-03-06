@@ -8,6 +8,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
+import { formatErrorMessage } from '@/lib/api-helpers'
 import { api } from '@/lib/apiClient'
 import { signinPath } from '@/lib/appPaths'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet'
@@ -24,6 +26,7 @@ export default function UnitClassesPage() {
   const [pageSize, setPageSize] = useState(20)
   const [totalElements, setTotalElements] = useState<number | null>(null)
   const [totalPages, setTotalPages] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -75,7 +78,9 @@ export default function UnitClassesPage() {
       setItems([])
       setTotalElements(0)
       setTotalPages(1)
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
     } finally {
       setIsLoading(false)
     }
@@ -122,7 +127,9 @@ export default function UnitClassesPage() {
         fetchList()
       }
     } catch (err) {
-      toast.error(String(err))
+      const msg = formatErrorMessage(err)
+      setError(msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -139,11 +146,16 @@ export default function UnitClassesPage() {
         <div className="p-4">
             <div className="mb-4 flex items-center gap-2">
             <Input placeholder="Search by name" value={q} onChange={(e) => { setQ(e.target.value); setPageNumber(0) }} className="min-w-[240px]" />
-            <Button onClick={() => { setQ(''); setPageNumber(0); fetchList() }}>Clear</Button>
+            <Button onClick={() => { setQ(''); setPageNumber(0); }}>Clear</Button>
             <Button onClick={() => { setEditingId(null); setFormOpen(true); setFormValues({ name: '', baseUnitName: '' }) }}>Add Unit Class</Button>
           </div>
 
-          <Table>
+          {isLoading ? (
+            <div className="py-12 flex justify-center"><LoadingSpinner text="Loading unit classes..." /></div>
+          ) : error ? (
+            <ErrorAlert error={error} onRetry={fetchList} />
+          ) : (
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
@@ -167,16 +179,17 @@ export default function UnitClassesPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+            </Table>
+          )}
 
           {/* Pagination */}
           <div className="mt-4 flex items-center justify-between">
             <div className="text-sm text-muted-foreground">Total: {totalElements ?? '—'}</div>
             <div className="flex items-center gap-2">
-              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); fetchList() }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+              <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
               <div className="text-sm">Page { (pageNumber + 1) }{ totalPages ? ` of ${totalPages}` : '' }</div>
-              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); fetchList() }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
-              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); fetchList() }} className="border rounded px-2 py-1">
+              <button onClick={() => { setPageNumber((p) => Math.min((totalPages ?? 1) - 1, p + 1)); }} disabled={totalPages ? pageNumber >= (totalPages - 1) : false} className="px-2 py-1 border rounded">Next</button>
+              <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-1">
                 <option value={10}>10</option>
                 <option value={20}>20</option>
                 <option value={50}>50</option>

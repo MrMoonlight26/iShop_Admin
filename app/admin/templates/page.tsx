@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api-config";
 import { toast } from "sonner";
+import { LoadingSpinner, ErrorAlert } from '@/components/ui/loading-error'
+import { formatErrorMessage } from '@/lib/api-helpers'
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,7 +25,7 @@ import {
 export default function NotificationTemplatesPage() {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingItem, setProcessingItem] = useState<string | null>(null);
 
@@ -34,7 +36,7 @@ export default function NotificationTemplatesPage() {
         return res.json()
       })
       .then(setTemplates)
-      .catch((e) => { setError('Failed to load templates.'); toast.error('Failed to load templates.'); })
+      .catch((e) => { const msg = formatErrorMessage(e); setError(msg); toast.error(msg); })
       .finally(() => setLoading(false))
   }, [])
 
@@ -45,15 +47,16 @@ export default function NotificationTemplatesPage() {
 
   async function reload() {
     setLoading(true);
-    setError('');
+    setError(null);
     try {
       const res = await apiFetch('/api/v1/admin/templates');
       if (!res.ok) throw new Error('network');
       const data = await res.json();
       setTemplates(data);
     } catch (e) {
-      setError('Failed to load templates.');
-      toast.error('Failed to load templates.');
+      const msg = formatErrorMessage(e)
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -78,7 +81,7 @@ export default function NotificationTemplatesPage() {
       toast.success('Template created');
       await reload();
     } catch (err: any) {
-      const msg = err?.message || 'Failed to create template.';
+      const msg = formatErrorMessage(err) || (err?.message || 'Failed to create template.')
       setError(msg);
       toast.error('Create failed: ' + msg);
     } finally {
@@ -104,7 +107,7 @@ export default function NotificationTemplatesPage() {
       toast.success('Template updated');
       await reload();
     } catch (err: any) {
-      const msg = err?.message || 'Failed to update template.';
+      const msg = formatErrorMessage(err) || (err?.message || 'Failed to update template.')
       setError(msg);
       toast.error('Update failed: ' + msg);
     } finally {
@@ -115,8 +118,8 @@ export default function NotificationTemplatesPage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-4">Notification Templates</h1>
-      {loading && <p>Loading...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {loading && <div className="py-6"><LoadingSpinner text="Loading templates..." /></div>}
+      {error && <ErrorAlert error={error} onRetry={reload} />}
       <div className="flex items-center justify-between mb-4">
         <div />
         <div>
