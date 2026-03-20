@@ -25,7 +25,8 @@ export default function PaymentConfigsPage() {
 
   const [showNew, setShowNew] = useState(false);
   const [newConfig, setNewConfig] = useState<any>({
-    type: "DIGITAL_PREPAID",
+    category: "CASH_ON_COLLECTION",
+    type: "UPI",
     displayName: "",
     description: "",
     iconUrl: "",
@@ -74,12 +75,13 @@ export default function PaymentConfigsPage() {
       });
       if (!res.ok) {
         let msg = 'create-failed';
-        try { const body = await res.json(); msg = body?.message || res.statusText; } catch (e) {}
+        try { const body = await res.json(); msg = body?.message || res.statusText; } catch (e) { }
         throw new Error(msg);
       }
       setShowNew(false);
       setNewConfig({
-        type: 'DIGITAL_PREPAID',
+        category: 'CASH_ON_COLLECTION',
+        type: 'UPI',
         displayName: '',
         description: '',
         iconUrl: '',
@@ -108,7 +110,7 @@ export default function PaymentConfigsPage() {
       });
       if (!res.ok) {
         let msg = 'update-failed';
-        try { const body = await res.json(); msg = body?.message || res.statusText; } catch (e) {}
+        try { const body = await res.json(); msg = body?.message || res.statusText; } catch (e) { }
         throw new Error(msg);
       }
       setEditing(null);
@@ -141,18 +143,32 @@ export default function PaymentConfigsPage() {
         <form onSubmit={handleCreate} className="mb-4 p-4 border rounded">
           <div className="grid grid-cols-2 gap-4">
             <label className="flex flex-col">
+              <span>Category</span>
+              <Select value={newConfig.category} onValueChange={(v: string) => setNewConfig({ ...newConfig, category: v })}>
+                <SelectTrigger className="mt-1" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ONLINE_PREPAID">ONLINE_PREPAID</SelectItem>
+                  <SelectItem value="CASH_ON_COLLECTION">CASH_ON_COLLECTION</SelectItem>
+                  <SelectItem value="POS_OFFLINE">POS_OFFLINE</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="flex flex-col">
               <span>Type</span>
               <Select value={newConfig.type} onValueChange={(v: string) => setNewConfig({ ...newConfig, type: v })}>
                 <SelectTrigger className="mt-1" size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="DIGITAL_PREPAID">DIGITAL_PREPAID</SelectItem>
                   <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="CARD">CARD</SelectItem>
+                  <SelectItem value="CREDIT_CARD">CREDIT_CARD</SelectItem>
+                  <SelectItem value="DEBIT_CARD">DEBIT_CARD</SelectItem>
                   <SelectItem value="NET_BANKING">NET_BANKING</SelectItem>
-                  <SelectItem value="CASH_ON_DELIVERY">CASH_ON_DELIVERY</SelectItem>
-                  <SelectItem value="PAY_AT_PICKUP">PAY_AT_PICKUP</SelectItem>
+                  <SelectItem value="WALLET">WALLET</SelectItem>
+                  <SelectItem value="CASH">CASH</SelectItem>
+                  <SelectItem value="LOYALTY_POINTS">LOYALTY_POINTS</SelectItem>
                 </SelectContent>
               </Select>
             </label>
@@ -248,7 +264,7 @@ export default function PaymentConfigsPage() {
                       <Button variant="ghost" size="sm" onClick={() => { setEditing(null); setEditValues({}); }} disabled={processing || processingItem === c.type}>Cancel</Button>
                     </>
                   ) : (
-                  <Button size="sm" onClick={() => { setEditing(c.type); setEditValues(c); }} disabled={processing}>Edit</Button>
+                    <Button size="sm" onClick={() => { setEditing(c.type); setEditValues(c); }} disabled={processing}>Edit</Button>
                   )}
                 </TableCell>
               </TableRow>

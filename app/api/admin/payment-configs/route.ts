@@ -13,6 +13,7 @@ function checkDevAuth(req: NextRequest) {
 // In-memory store for demonstration (replace with DB in production)
 let paymentConfigs: any[] = [
   {
+    category:"PAYMENT_CATEGORY_CASH",
     type: "DIGITAL_PREPAID",
     displayName: "Digital Prepaid",
     description: "Digital prepaid wallet",
