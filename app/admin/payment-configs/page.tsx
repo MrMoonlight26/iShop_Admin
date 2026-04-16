@@ -208,6 +208,7 @@ export default function PaymentConfigsPage() {
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Category</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Display Name</TableHead>
             <TableHead>Description</TableHead>
@@ -219,7 +220,14 @@ export default function PaymentConfigsPage() {
         <TableBody>
           {configs.map((c: any) => {
             return (
-              <TableRow key={c.type}>
+              <TableRow key={c.category}>
+                <TableCell>
+                  {editing === c.category ? (
+                    <input value={editValues.category ?? c.category} disabled className="w-36" />
+                  ) : (
+                    c.type
+                  )}
+                </TableCell>
                 <TableCell>
                   {editing === c.type ? (
                     <input value={editValues.type ?? c.type} disabled className="w-36" />

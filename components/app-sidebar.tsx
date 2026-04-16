@@ -68,6 +68,10 @@ const data = {
               url: "/admin/brands",
             },
         {
+          title: "HSN Management",
+          url: "/admin/hsn",
+        },
+        {
           title: "Business Categories",
           url: "/admin/business-categories",
         },
