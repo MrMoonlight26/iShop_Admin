@@ -18,6 +18,7 @@ export default function HsnManagementPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [q, setQ] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const [pageNumber, setPageNumber] = useState(0)
   const [pageSize, setPageSize] = useState(20)
@@ -65,13 +66,14 @@ export default function HsnManagementPage() {
 
   function openCreate() {
     setFormValues({ hsnCode: '', description: '', portalDescription: '', uqc: '', igstRate: 0, compensationCess: 0, isReportableB2B: true, isReportableB2C: true })
+    setFormError(null)
     setFormOpen(true)
   }
 
   async function submitForm(e?: React.FormEvent) {
     e?.preventDefault()
     setSaving(true)
-    setError(null)
+    setFormError(null)
     try {
       // client-side validation mirroring backend constraints
       const code = String(formValues.hsnCode || '').trim()
@@ -122,7 +124,7 @@ export default function HsnManagementPage() {
       await fetchList()
     } catch (err) {
       const msg = formatErrorMessage(err)
-      setError(msg)
+      setFormError(msg)
       toast.error(msg)
     } finally {
       setSaving(false)
@@ -213,31 +215,38 @@ export default function HsnManagementPage() {
               <SheetTitle>Add HSN</SheetTitle>
               <SheetDescription>Create a new HSN record</SheetDescription>
             </SheetHeader>
+            {formError ? <div className="mb-2"><ErrorAlert error={formError} /></div> : null}
             <form onSubmit={submitForm} className="p-4 space-y-3">
               <div>
                 <Label>HSN Code</Label>
                 <Input required value={String(formValues.hsnCode || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, hsnCode: e.target.value }))} />
+                <p className="text-sm text-muted-foreground">Enter 4, 6, or 8 digit HSN code (numbers only)</p>
               </div>
               <div>
                 <Label>Description</Label>
                 <Input value={String(formValues.description || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, description: e.target.value }))} />
+                <p className="text-sm text-muted-foreground">Short description (required)</p>
               </div>
               <div>
                 <Label>Portal Description</Label>
                 <Input value={String(formValues.portalDescription || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, portalDescription: e.target.value }))} />
+                <p className="text-sm text-muted-foreground">Optional description shown on the customer portal</p>
               </div>
               <div>
                 <Label>Unit Quantity</Label>
                 <Input value={String(formValues.uqc || '')} onChange={(e) => setFormValues((s: any) => ({ ...s, uqc: e.target.value }))} />
+                <p className="text-sm text-muted-foreground">Unit of measure, e.g., Nos, Kg, Mtr</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label>IGST Rate</Label>
                   <Input type="number" step="0.01" value={String(formValues.igstRate ?? 0)} onChange={(e) => setFormValues((s: any) => ({ ...s, igstRate: Number(e.target.value) }))} />
+                  <p className="text-sm text-muted-foreground">Percentage (e.g., 18 for 18%)</p>
                 </div>
                 <div>
                   <Label>Compensation Cess</Label>
                   <Input required type="number" step="0.01" value={String(formValues.compensationCess ?? 0)} onChange={(e) => setFormValues((s: any) => ({ ...s, compensationCess: Number(e.target.value) }))} />
+                  <p className="text-sm text-muted-foreground">Numeric value, must be 0 or greater</p>
                 </div>
               </div>
               <div className="flex gap-4 items-center">
