@@ -22,7 +22,17 @@ async function proxy(req: Request) {
     const url = new URL(req.url)
     const prefix = '/api/proxy'
     const suffix = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) : url.pathname
-    const target = getApiUrl(`/api/v1${suffix}`) + url.search
+    let target = getApiUrl(`/api/v1${suffix}`) + url.search
+
+    // If getApiUrl returned a relative /api/v1 path (no external API_BASE configured),
+    // fall back to local Next.js API routes by replacing /api/v1 with /api.
+    try {
+      if (typeof target === 'string' && target.startsWith('/api/v1')) {
+        target = target.replace(/^\/api\/v1/, '/api')
+      }
+    } catch (e) {
+      // ignore
+    }
 
     // Build headers: forward incoming headers except host
     const incoming = Object.fromEntries(req.headers.entries())

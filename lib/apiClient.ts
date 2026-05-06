@@ -40,9 +40,21 @@ api.interceptors.response.use(
   async (error: AxiosError & { config?: AxiosRequestConfig }) => {
     const originalConfig = error.config
     try {
+      // Defensive extraction to avoid getters throwing during logging
+      const status = (error && (error as any).response && typeof (error as any).response.status !== 'undefined') ? (error as any).response.status : null
+      let dataSnippet: string | null = null
+      try {
+        const d = (error && (error as any).response && (error as any).response.data) ? (error as any).response.data : null
+        dataSnippet = typeof d === 'string' ? d : (d ? JSON.stringify(d).slice(0, 1000) : null)
+      } catch (e) {
+        dataSnippet = null
+      }
+      const url = originalConfig?.url ? String(originalConfig.url) : null
       // eslint-disable-next-line no-console
-      console.error('[api] response error:', { url: originalConfig?.url, status: error.response?.status, data: error.response?.data })
-    } catch (e) {}
+      console.error('[api] response error:', `url=${url} status=${String(status)} data=${String(dataSnippet)}`)
+    } catch (e) {
+      // ignore logging errors
+    }
 
     if (error.response?.status === 401 && originalConfig && !(originalConfig as any)._retry) {
         // Log the 401 and the request URL for debugging

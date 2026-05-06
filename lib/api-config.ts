@@ -101,6 +101,20 @@ export async function apiFetch(
     // ignore
   }
 
+  // If server-side, try to read incoming request cookies and attach Authorization header
+  if (typeof window === 'undefined') {
+    try {
+      // dynamic import to avoid client-side bundling
+      const { cookies } = await import('next/headers')
+      const access = cookies().get('ACCESS_TOKEN')?.value
+      if (access) {
+        defaultHeaders['Authorization'] = `Bearer ${access}`
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return fetch(url, {
     ...fetchOptions,
     headers: { ...defaultHeaders, ...(headers || {}) },

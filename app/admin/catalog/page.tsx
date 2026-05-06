@@ -98,6 +98,8 @@ export default function CatalogPage() {
     }
   }, [])
 
+
+
   useEffect(() => {
     fetchList()
   }, [pageNumber, pageSize, query])
@@ -106,7 +108,6 @@ export default function CatalogPage() {
   if (status === 'loading') return null
 
   async function fetchList(overridePage?: number) {
-    setIsLoading(true)
     setError(null)
     const pageToUse = typeof overridePage === 'number' ? overridePage : pageNumber
     const params: Record<string, string | number> = {
@@ -115,17 +116,43 @@ export default function CatalogPage() {
       ...(query ? { q: query } : {})
     }
     try {
+      setIsLoading(true)
       // diagnostic log: outgoing request params
       // eslint-disable-next-line no-console
       console.debug('[Catalog] request params:', params)
       const r = await api.get('/admin/catalog', { params })
-      
-      const data = r.data
-      const items = Array.isArray(data.content) ? data.content : []
+      const raw = r.data
+
+      // Normalize content: accept raw.content, raw.data, raw.data.content, or raw array
+      let content: any = []
+      if (Array.isArray(raw)) content = raw
+      else if (Array.isArray(raw.content)) content = raw.content
+      else if (Array.isArray(raw.data)) content = raw.data
+      else if (Array.isArray(raw.data?.content)) content = raw.data.content
+      else if (Array.isArray(raw.content?.content)) content = raw.content.content
+
+      const items = Array.isArray(content) ? content : []
       setProducts(items)
-      setError(null)
-      setTotalElements(typeof data.totalElements === 'number' ? data.totalElements : (Array.isArray(items) ? items.length : null))
-      setTotalPages(typeof data.totalPages === 'number' ? data.totalPages : null)
+
+      // robustly extract totals from common shapes
+      const totalEl = (typeof raw.totalElements === 'number' && raw.totalElements >= 0) ? raw.totalElements
+        : (typeof raw.total === 'number' ? raw.total
+        : (typeof raw.data?.totalElements === 'number' ? raw.data.totalElements
+        : (typeof raw.page?.totalElements === 'number' ? raw.page.totalElements
+        : null)))
+
+      const totalPg = (typeof raw.totalPages === 'number' && raw.totalPages >= 0) ? raw.totalPages
+        : (typeof raw.page?.totalPages === 'number' ? raw.page.totalPages
+        : null)
+
+      setTotalElements(totalEl)
+
+      if (totalPg !== null) setTotalPages(totalPg)
+      else if (totalEl !== null && pageSize) setTotalPages(Math.max(1, Math.ceil(Number(totalEl) / pageSize)))
+      else setTotalPages(null)
+
+      // ensure UI pageNumber reflects the requested page
+      setPageNumber(pageToUse)
     } catch (err) {
       setProducts([])
       setTotalElements(null)
@@ -156,23 +183,27 @@ export default function CatalogPage() {
   async function fetchUnits() {
     setIsUnitsLoading(true)
     try {
-      try {
-        const r = await api.get('/admin/units')
-        const data = r.data
-        setUnits(data)
-        if (data && data.length && !createUnitTypeId) setCreateUnitTypeId(data[0].id)
-      } catch (e) {
+      const r = await api.get('/admin/units')
+      const data = r.data
+      // normalize possible response shapes (array or { content: [] })
+      let arr: any[] = []
+      if (Array.isArray(data)) arr = data
+      else if (Array.isArray(data.content)) arr = data.content
+      setUnits(arr)
+      if (arr && arr.length && !createUnitTypeId) setCreateUnitTypeId(arr[0].id)
+    } catch (e) {
+      const status = (e as any)?.response?.status
+      if (status === 404) {
+        // units endpoint not present on this backend - treat as optional
+        // eslint-disable-next-line no-console
+        console.warn('[Catalog] units endpoint returned 404; continuing without units')
+        setUnits([])
+      } else {
         const msg = formatErrorMessage(e)
         setError(msg)
         toast.error(msg)
         setUnits([])
-        return
       }
-    } catch (e) {
-      const msg = formatErrorMessage(e)
-      setError(msg)
-      toast.error(msg)
-      setUnits([])
     } finally {
       setIsUnitsLoading(false)
     }
@@ -193,10 +224,18 @@ export default function CatalogPage() {
       setCategories(arr)
       if (arr.length && !createCategoryId) setCreateCategoryId(arr[0].id)
     } catch (e) {
-      const msg = formatErrorMessage(e)
-      setError(msg)
-      toast.error(msg)
-      setCategories([])
+      const status = (e as any)?.response?.status
+      if (status === 404) {
+        // categories endpoint missing; continue without treating as fatal
+        // eslint-disable-next-line no-console
+        console.warn('[Catalog] categories endpoint returned 404; continuing without categories')
+        setCategories([])
+      } else {
+        const msg = formatErrorMessage(e)
+        setError(msg)
+        toast.error(msg)
+        setCategories([])
+      }
     } finally {
       setIsCategoriesLoading(false)
     }
@@ -316,12 +355,13 @@ export default function CatalogPage() {
   }
 
   function renderPagination() {
-    const pages = Math.max(1, totalPages ?? Math.max(1, Math.ceil((totalElements ?? 0) / pageSize)))
+    const derivedTotal = totalPages ?? (totalElements !== null ? Math.max(1, Math.ceil(Number(totalElements) / pageSize)) : null)
+    const pages = derivedTotal ?? Math.max(1, Math.ceil((products?.length ?? 0) / (pageSize || 1)))
     return (
       <div className="flex items-center gap-2 mt-4">
-        <button onClick={() => { setPageNumber((p) => Math.max(0, p - 1)); }} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
+        <button onClick={() => setPageNumber((p) => Math.max(0, p - 1))} disabled={pageNumber === 0} className="px-2 py-1 border rounded">Prev</button>
         <div>Page {pageNumber + 1} of {pages}</div>
-        <button onClick={() => { setPageNumber((p) => Math.min(pages - 1, p + 1)); }} disabled={pageNumber >= (pages - 1)} className="px-2 py-1 border rounded">Next</button>
+        <button onClick={() => setPageNumber((p) => Math.min(pages - 1, p + 1))} disabled={pageNumber >= (pages - 1)} className="px-2 py-1 border rounded">Next</button>
         <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-1">
           <option value={10}>10</option>
           <option value={20}>20</option>
@@ -343,13 +383,13 @@ export default function CatalogPage() {
 
 
           <form onSubmit={(e) => { e.preventDefault(); setPageNumber(0); }} className="mb-4 flex gap-2 items-center">
-            <input placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} className="border rounded px-3 py-2 flex-1 min-w-[240px]" />
-            <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPageNumber(0); }} className="border rounded px-2 py-2">
+            <input placeholder="Search products" value={query} onChange={(e) => { setQuery((e.target as HTMLInputElement).value); setPageNumber(0); }} className="flex-1 min-w-[240px] border rounded px-2 py-1" />
+            <select value={pageSize} onChange={(e) => { const s = parseInt(e.target.value, 10); setPageSize(s); setPageNumber(0); }} className="border rounded px-2 py-2">
               <option value={10}>10</option>
               <option value={20}>20</option>
               <option value={50}>50</option>
             </select>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded">Search</button>
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">Search</button>
             <button type="button" onClick={() => { setQuery(''); setPageNumber(0); }} className="px-3 py-2 border rounded">Clear</button>
             <Button onClick={() => setCreateOpen(true)} className="ml-2">Create product</Button>
           </form>

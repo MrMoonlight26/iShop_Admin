@@ -45,8 +45,11 @@ export default function OrdersPage() {
 
   useEffect(() => {
     api.get('/admin/shops', { params: { limit: 100 } }).then((r) => {
-      const data = r.data
-      setShops(data.data || data)
+      const raw = r.data
+      const content = raw?.content ?? raw?.data ?? raw
+      const arr = Array.isArray(content) ? content : []
+      const items = arr.map((s: any) => ({ id: s.id ?? s.shopId, name: s.name ?? s.shopName ?? s.title ?? (s.owner || {}).name ?? 'Unknown' }))
+      setShops(items)
     }).catch(() => setShops([]))
   }, [])
 
